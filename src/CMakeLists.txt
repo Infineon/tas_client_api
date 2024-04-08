@@ -1,0 +1,2 @@
+add_subdirectory(tas_socket)
+add_subdirectory(tas_client)

@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+
+from setuptools import find_packages, setup
+from setuptools.dist import Distribution
+
+class BinaryDistribution(Distribution):
+    def is_pure(self):
+        return False
+    
+    def has_ext_modules(self):
+        return True
+    
+from setuptools.command.install import install
+class InstallPlatlib(install):
+    def finalize_options(self):
+        install.finalize_options(self)
+        self.install_lib=self.install_platlib
+
+setup(
+    name="@PYTHON_PROJECT@",
+    version="@PROJECT_VERSION@",
+    description="A python interface for TAS",
+    long_description="This library provides an interface for the C++ TAS library",
+    author="Ibai Irigoien",
+    author_email="ibai.irigoyenceberio@infineon.com",
+    maintainer="TBD",
+    maintainer_email="TBD",
+    url="https://www.infineon.com/DAS",
+    distclass=BinaryDistribution,
+    cmdclass={'install': InstallPlatlib},
+    packages=find_packages(
+        where="src",
+        include=["Py*"],
+    ),
+    package_dir={"": "src"},
+    package_data={
+        "@PYTHON_PROJECT@":["$<$<NOT:$<PLATFORM_ID:Windows>>:'.libs/*'>", "$<TARGET_FILE_NAME:PyTAS>"],
+    },
+    classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: Apache Software License",
+        "Operating System :: POSIX :: Linux",
+        "Operating System :: MacOS :: MacOS X",
+        "Operating System :: Microsoft :: Windows",
+        "Programming Language :: Python",
+        "Programming Language :: C++",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+    ],
+)
