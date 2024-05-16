@@ -72,7 +72,6 @@ if (MSVC)
     target_compile_options(${LIB_NAME} PRIVATE
         /W3
         /MP
-        /std:c++20
         "$<$<CONFIG:Release>:"
             "/O2"
         ">"

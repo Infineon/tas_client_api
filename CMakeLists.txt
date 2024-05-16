@@ -15,12 +15,12 @@ cmake_minimum_required(VERSION "${MIN_VER_CMAKE}" FATAL_ERROR)
 # Project definition
 # -----------------------------------------------------------------------------
 project(tas_client_api
-    VERSION 1.0.0
+    VERSION 1.0.1
     DESCRIPTION "Infineon's Tool Access Socket (TAS) Client API"
-    HOMEPAGE_URL "https://www.infineon.com/DAS"
+    HOMEPAGE_URL "https://github.com/Infineon/tas_client_api"
     LANGUAGES CXX
 )
-set(TAS_CLIENT_COPYRIGHT "(c) Infineon Technologies AG 2023")
+set(TAS_CLIENT_COPYRIGHT "(c) Infineon Technologies AG 2024")
 
 # -----------------------------------------------------------------------------
 # Break in case of popular CMake configuration mistakes

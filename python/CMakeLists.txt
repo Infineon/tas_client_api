@@ -3,12 +3,22 @@ if (NOT TAS_CLIENT_API_BUILD_PYTHON)
     return()
 endif()
 
-# Based on pybind11 this should be after python.
-# However, with Python debug libs installed there are issues. 
-# Pybind11 issue: https://github.com/pybind/pybind11/issues/3403
-# Non-compliant fix is to swap these two. 
-find_package(pybind11 CONFIG)
+# Uncomment and spcify the root of Python installation if specific version should be used, otherwise the system default 
+# is selected 
+if (WIN32)
+    #set(Python3_ROOT_DIR "C:\\Program Files\\Python311")
+elseif (UNIX)
+    #set(Python3_ROOT_DIR "/usr/bin/python3.11")
+endif()
+
+# Look for python executable
 find_package(Python3 COMPONENTS Interpreter Development)
+# Based on pybind11 this should be after find_package(Python3). However, with Python debug libs installed there is an issues. 
+find_package(pybind11 CONFIG)
+
+# Solution for an open issue due to installed python debug libs: https://github.com/pybind/pybind11/issues/3403
+set_target_properties(Python3::Module PROPERTIES
+        MAP_IMPORTED_CONFIG_DEBUG ";RELEASE")
 
 if (NOT pybind11_FOUND)
     message(FATAL_ERROR "pybind11 not found ${pybind11_FOUND}. Dependecies managed by conan, run 'conan install .' first")

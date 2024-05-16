@@ -4,10 +4,6 @@
 
 This readme file gives an overview how to build and run the code. 
 
-## Important branches to know
-develop            	--> Development is done continuously on this branch  
-master 				--> Fully tested released source code  
-
 ## Prerequisite for building locally
 This project uses [conan](https://conan.io) as dependency manager and consequently CMake as the build environment.
 All required packages and build tools are retrieved from the [ConanCenter](https://conan.io/center). See conanfile.py 
@@ -17,6 +13,9 @@ for the list of dependencies. Therefore, to build this project you will need:
 - [CMake](https://cmake.org/), minimum version 3.25
 - Target compiler: msvc, gcc, etc.
 - [Doxygen](https://www.doxygen.nl/), if you want to build the API reference documentation
+
+### Prerequisite for building the python wrapper
+Python packages: setuptools, wheel, virtualenv
 
 ### Conan
 If not already installed, install conan: 
@@ -31,9 +30,13 @@ conan profile detect
 The generated profile can be then found under *\<home_dir\>/.conan2/profiles*. The default configuration is Release.
 More information about conan profiles can be found here https://docs.conan.io/2.0/reference/config_files/profiles.html.
 Edit the default conan profile with your favorite text editor so that the **C++17 standard** is used.
+```
+compiler.cppstd=17
+```
+Note: make sure your compiler supports C++17.
 
 ## Building
-First generate the build environment by invoking conan from the root of this repository:
+First generate the build environment by invoking conan **from the root of this repository**:
 ```
 conan install .
 conan install . -s build_type=Debug --build=missing
@@ -107,3 +110,14 @@ The project is configured in way that the binaries can be installed to a specifi
 cmake --install build --prefix=install
 ```
 where build is the build directory, and prefix options defines the root install / export folder.
+
+## Python wrapper
+Building the python wrapper using the above steps requires -o python=True conan option when invoking the conan install command.
+
+If you want to use a specific Python version or you have multiple version installed you can tell CMake which one to use
+by modifying the following CMake file: python\CMakeLists.txt before executing the above commands.
+```
+set(Python3_ROOT_DIR "<system path to python root>")
+```
+
+The generated python wheel will be located under: build\python\dist
