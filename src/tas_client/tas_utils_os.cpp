@@ -47,13 +47,12 @@ bool tasutil_check_local_tas_server_is_running()
 
 	GetLastError();  // Clear old errors
 	HANDLE hMutex = OpenMutexW(SYNCHRONIZE, FALSE, L"Global\\only_one_TasServer_on_host");
-	DWORD lastError = GetLastError();
-	if (lastError != ERROR_SUCCESS) {
+	if (hMutex == NULL) {
+		DWORD lastError = GetLastError();
 		assert(lastError == ERROR_FILE_NOT_FOUND);
 		return false;  // TasServer is NOT running
-	}
-	CloseHandle(hMutex);  // Not needed
-
+	}		
+	CloseHandle(hMutex);
 	return true;  // TasServer is running
 }
 
