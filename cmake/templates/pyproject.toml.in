@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "@PYTHON_PROJECT@"
+requires-python = ">=3.6"
+version = "@PYTHON_PROJECT_VERSION@"
+description = "@PYTHON_PROJECT_DESCRIPTION@"
+dependencies = [@PYTHON_PROJECT_DEPENDENCIES@]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: C++",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+license = "Apache-2.0"
+license-files = ["LICEN[CS]E*"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["$<$<NOT:$<PLATFORM_ID:Windows>>:'.libs/*'>", "*.dll", "*.so", "*.pyd"]

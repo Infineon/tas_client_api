@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -31,6 +31,7 @@ bool CTasPktMailboxSocket::server_connect(const char* ip_addr, uint16_t port_num
 	mSocket = new CTasTcpSocket();
 	if (!mSocket->connect(ip_addr, port_num, mTimeoutMs))
 	{
+		mSocketDisconnect(); // Clean up socket on failure
 		return false;
 	}
 	
@@ -116,7 +117,7 @@ bool CTasPktMailboxSocket::mReceivePl2Pkt()
 	w = mNumBytesRsp / 4;
 
 	// Get PL2 packet size
-	if (!mSocketReceive(w, 4)) {
+	if (!mSocketReceive(w, 4, mTimeoutMs)) {
 		return false;    // Timeout case
 	}
 	pktSize = mRspBuf[w];
@@ -140,25 +141,34 @@ bool CTasPktMailboxSocket::mReceivePl2Pkt()
 bool CTasPktMailboxSocket::mSocketSend(const uint32_t* rq, uint32_t num_bytes)
 {
 	assert(num_bytes % 4 == 0);
-
-	if (mSocket->send(rq, num_bytes, mTimeoutMs) <= 0)
+	
+	int numSendBytes = num_bytes;
+	if (int ret = mSocket->sendAll(rq, &numSendBytes, mTimeoutMs); ret < 0)
 	{
-		mSocketDisconnect();
+		if (ret == -1) { // in case of an error
+			mSocketDisconnect();
+		}	
 		return false;
 	}
 
 	return true;
 }
 
-bool CTasPktMailboxSocket::mSocketReceive(uint32_t w, uint32_t num_bytes)
+bool CTasPktMailboxSocket::mSocketReceive(uint32_t w, uint32_t num_bytes, uint32_t timeout_ms)
 {
+	assert(num_bytes > 0);
+
 	mRspBuf[w] = 0;
 
-	if (mSocket->recv(&mRspBuf[w], num_bytes, (int)mTimeoutMs) <= 0)
+	int numBytesRcvNow = num_bytes;
+
+	int ret = mSocket->recvAll(&mRspBuf[w], &numBytesRcvNow, (int)timeout_ms);
+	if (ret < 0)
 	{
-		mSocketDisconnect();
+		if (ret == -1) { // in case of an error
+			mSocketDisconnect();
+		}		
 		return false;
 	}
-	
-	return (mRspBuf[w] != 0);
+	return true;
 }

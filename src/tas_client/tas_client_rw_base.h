@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -199,8 +199,6 @@ protected:
 	CTasPktHandlerRw* mTphRw = nullptr; //!< \brief Packet handler object. Used for constructing and parsing packets.
 
 private:
-	uint32_t mTimeoutMs = TAS_DEFAULT_TIMEOUT_MS;	//!< \brief Current timeout setting.
-
 	std::vector<uint32_t> mRspBuf; //!< \brief Response packet buffer. For one or more PL2 packets.
 
 	//! \brief Transforms simple read/write operations into single transaction execution

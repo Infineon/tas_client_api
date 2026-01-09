@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -25,4 +25,4 @@
 #include <pybind11/stl.h>
 #include "tas_python_client_rw.hpp"
 #include "tas_python_client_chl.hpp"
-#include "tas_python_client_trc.hpp"
+#include "tas_client_trc.h"

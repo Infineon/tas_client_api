@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -38,6 +38,10 @@ public:
 	//! \param client_name Mandatory client name as a c-string
 	explicit CTasClientChl(const char* client_name);
 
+	//! \brief Get connection information of an established connection.
+	//! \returns pointer to the connection information
+	const tas_con_info_st* get_con_info() const { return mTphChl.get_con_info(); }
+
 	//! \brief Start a connection session
 	//! \details A session can only be started when a channel description is available in the TasServer.
 	//! The channel description is read from a device by the first ClientChl.session_start() call.
@@ -60,24 +64,19 @@ public:
 	//! prio [in]  : Requested priority (default TAS_CHL_LOWEST_PRIORITY)\n
 	//! prio [out] : Assigned priority (equal or lower than requested)\n
 	//! It is not possible to subscribe to more than one channel.
-	//! \param chl Channel number, can be between 0 and 31
+	//! \param chl Channel number, can be between 0 and 30. 31 is reserved for ClientTrc.
 	//! \param cht Channel type, can be send, receive or bidirectional
 	//! \param chso	Subscribe exclusively to a channel. 
-	//! \param prio Channel's priority
+	//! \param prio Channel's priority (0 highest, 31 lowest). If value is used the next higher free value is assigned.
 	//! \returns \ref TAS_ERR_NONE on success, otherwise any other relevant TAS error code
 	tas_return_et subscribe(uint8_t chl, tas_cht_et cht, tas_chso_et chso = TAS_CHSO_EXCLUSIVE, uint8_t* prio = nullptr);
-
-	//! \brief Unsubscribe from a channel. 
-	//! \details Unsubscribing from an unsubscribed channel has no effect.
-	//! \returns \ref TAS_ERR_NONE on success, otherwise any other relevant TAS error code
-	tas_return_et unsubscribe();
 
 	//! \brief Send a message through a subscribed channel
 	//! \details \ref tas_con_info_st.msg_length_c2d sets the limit for msg_length plus 4 bytes for init if init is not 0
 	//! \param msg Pointer to message content
 	//! \param msg_length Length of the message in Bytes
 	//! \param init Optional init word, default 0
-	tas_return_et send_msg(const void* msg, uint16_t msg_length, uint32_t init = 0);
+	tas_return_et send_msg(const void* msg, uint32_t msg_length, uint32_t init = 0);
 
 	//! \brief Receive a message through a subscribed channel
 	//! \details \ref tas_con_info_st.msg_length_d2c sets the limit for msg_length plus 4 bytes for init if init is not 0
@@ -85,7 +84,11 @@ public:
 	//! \param msg Pointer to a message buffer
 	//! \param msg_length Pointer to a variable for storing the message length
 	//! \param init Pointer to a variable for storing the init word
-	tas_return_et rcv_msg(uint32_t timeout_ms, const void** msg, uint16_t* msg_length, uint32_t* init);
+	tas_return_et rcv_msg(uint32_t timeout_ms, const uint32_t** msg, uint32_t* msg_length, uint32_t* init);
+	tas_return_et rcv_msg(uint32_t timeout_ms, const void** msg, uint32_t* msg_length, uint32_t* init)
+	{
+		return rcv_msg(timeout_ms, (const uint32_t**)msg, msg_length, init);
+	}
 
 	//! \brief Performs a check if device reset has occurred.
 	//! \returns \c true if reset occurred, otherwise \c false
@@ -120,6 +123,7 @@ public:
 	//! \brief Send a ping to a target and obtain connection info
 	//! \details Check the connection which was established with CTasClientServerCon::session_start() before.\n
 	//! The channel description will be read from the device only once if the channel information is present.\n
+	//! Can only be called before the channel is subscribed.
 	//! Only needed for special use cases and debugging.
 	//! \param con_info Pointer to a variable to which connection info should be stored
 	//! \returns \ref TAS_ERR_NONE on success, otherwise any other relevant TAS error code
@@ -133,12 +137,21 @@ private:
 
 	tas_error_info_st mEi; //!< \brief Contains current error information. 
 
+	tas_chl_target_et mChlTarget; //!< \brief Channel target.
+
 	CTasPktMailboxIf* mMbIfChl; //!< \brief Packet mailbox interface.
 
 	CTasPktHandlerChl mTphChl; //!< \brief Packet handler object. Used for constructing and parsing packets.
 
 	tas_cht_et mChlCht = TAS_CHT_NONE;		//!< \brief Channel type
 	uint8_t    mChlNum = TAS_CHL_NUM_MAX;	//!< \brief Channel number
+	
+	enum {
+		RSP_PKT_BUF_SIZE_CHL = TAS_PL1_CHL_MAX_MSG_SIZE,  // 1kB 
+		RSP_PKT_BUF_SIZE_TRC = TAS_PL2_MAX_PKT_SIZE       // 64kB (only 63kB usable for trace data)
+	};
+	uint32_t *mRspPktBuf;
+	uint32_t mRspPktBufSize = 0;
 
 };
 

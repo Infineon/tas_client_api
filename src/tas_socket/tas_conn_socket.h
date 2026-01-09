@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -53,11 +53,12 @@ public:
 	//! \brief Tries to send all the data specified by len parameter through an established connection
 	//! \details If the timeout is not provided this is a blocking operation and it may block forever
 	//! \param buf a pointer to a buffer containing the data to be transmitted
-	//! \param len the length, in bytes, of the data in buffer pointed to by the buf parameter
+	//! \param len pointer to the length, in bytes, of the data in buffer pointed to by the buf parameter. 
+	//! Hold the actual number of bytes received after the completed function call.
 	//! \param timeout_ms timeout in milliseconds, default: -1
 	//! \returns the total number of bytes sent, which can be less than the number requested to be sent in the len 
 	//! parameter, \c -1 in case of an error, \c 0 if the connection has been gracefully closed
-	int sendAll(const void* buf, int len, int timeout_ms = -1);
+	int sendAll(const void* buf, int *len, int timeout_ms = -1);
 
 	//! \brief Receive data through an established connection
 	//! \details It is not guaranteed that all the data is received, check the return value
@@ -67,18 +68,18 @@ public:
 	//! bytes which should be <= buffer size
 	//! \param timeout_ms timeout in milliseconds, default: -1 
 	//! \returns the number of bytes received and the buffer pointed to by the buf parameter will contain this data 
-	//! received, \c -1 in case of an error, \c 0 if the connection has been gracefully closed
+	//! received, \c -1 in case of an error, \c -2 in case of a timeout, \c 0 if the connection has been gracefully closed
 	int recv(void* buf, int len, int timeout_ms = -1);
 
 	//! \brief Tries to receive all the data specified by the len parameter through an established connection
 	//! \details If the timeout is not provided this is a blocking operation and it may block forever
 	//! \param buf pointer to a data buffer for storing the incoming data
-	//! \param len the length, in bytes, of the buffer pointed to by the buf parameter or expected number of incoming 
-	//! bytes which should be <= buffer size
+	//! \param len pointer to the length, in bytes, of the buffer pointed to by the buf parameter or expected number of incoming 
+	//! bytes which should be <= buffer size. Hold the actual number of bytes received after the completed function call.
 	//! \param timeout_ms timeout in milliseconds, default: -1 no timeout
 	//! \returns the number of bytes received and the buffer pointed to by the buf parameter will contain this data 
 	//! received, \c -1 in case of an error, \c 0 if the connection has been gracefully closed
-	int recvAll(void* buf, int len, int timeout_ms = -1);
+	int recvAll(void* buf, int *len, int timeout_ms = -1);
 
 	//! \brief Retrieves remote's IP address
 	//! \returns remote's IP address as c-string in dot notation

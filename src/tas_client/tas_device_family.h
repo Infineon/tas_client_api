@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -120,6 +120,9 @@ enum tas_device_type_t: uint32_t {
     TAS_DT_TC45X   = 0x0021B083,
     TAS_DT_TC45X_A = 0x1021B083,
 
+    TAS_DT_TC45SE  = 0x0023B083,
+    TAS_DT_TC45SE_A = 0x1023B083,
+
     TAS_DT_TC46X   = 0x0021C083,
     TAS_DT_TC46X_A = 0x1021C083,
 
@@ -137,6 +140,9 @@ enum tas_device_type_t: uint32_t {
 
     TAS_DT_TC4RX   = 0x00223083,
     TAS_DT_TC4RX_A = 0x10223083,
+
+    TAS_DT_TC4Zx   = 0x00230083,
+    TAS_DT_TC4Zx_A = 0x10230083,
 
     // XMC1000
     TAS_DT_XMC1000   = 0x001ED083,
@@ -194,12 +200,14 @@ inline const char* tas_get_device_name_str(uint32_t device_type)
     case TAS_DT_TC42X:  return "TC42x";
     case TAS_DT_TC44X:  return "TC44x";
     case TAS_DT_TC45X:  return "TC45x";
+    case TAS_DT_TC45SE:  return "TC45SE";
     case TAS_DT_TC46X:  return "TC46x";
     case TAS_DT_TC48X:  return "TC48x";
     case TAS_DT_TC49AA: return "TC49xA";
     case TAS_DT_TC49X:  return "TC49x";
     case TAS_DT_TC4DX:  return "TC4Dx";
-    case TAS_DT_TC4RX:  return "TC4RxA";
+    case TAS_DT_TC4RX:  return "TC4FA";    
+    case TAS_DT_TC4Zx:  return "TC4Zx";
 
     case TAS_DT_TC21X:  return "TC21x";
     case TAS_DT_TC22X:  return "TC22x";
@@ -287,12 +295,14 @@ inline bool tas_df_check_if_tc4x(uint32_t device_type)
     case TAS_DT_TC42X:
     case TAS_DT_TC44X:
     case TAS_DT_TC45X:
+    case TAS_DT_TC45SE:
     case TAS_DT_TC46X:
     case TAS_DT_TC48X:
     case TAS_DT_TC49AA:
     case TAS_DT_TC49X:
     case TAS_DT_TC4DX:
     case TAS_DT_TC4RX:
+    case TAS_DT_TC4Zx:
         return true;
     default:
         return false;

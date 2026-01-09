@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -61,8 +61,6 @@ enum tas_return_et : uint16_t {
 	TAS_ERR_CHL_SETUP        = 0x0800,  //!< \brief Channel setup failed
 	TAS_ERR_CHL_SEND         = 0x0810,  //!< \brief Sending of the message has failed (e.g. buffer full). Can try again.
 	TAS_ERR_CHL_RCV          = 0x0820,  //!< \brief No message was received. Can try again.
-
-	TAS_ERR_TRC_RCV          = 0x0A00,  //!< \brief No trace data was received. Can try again.
 };
 
 //! \brief Connection options for device_connect() method.

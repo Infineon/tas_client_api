@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -29,9 +29,15 @@
 #include <cstdio>
 
 #ifdef _DEBUG
-enum { TAS_DEFAULT_TIMEOUT_MS = -1 }; 		//!< \brief No timeout
+enum { 
+	TAS_DEFAULT_TIMEOUT_MS = -1, //!< \brief No timeout
+	TAS_DEFAULT_EMU_TIMEOUT_MS = -1, //!< \brief No timeout
+}; 		
 #else
-enum { TAS_DEFAULT_TIMEOUT_MS = 2000 }; 	//!< \brief 2s
+enum { 
+	TAS_DEFAULT_TIMEOUT_MS = 2000, //!< \brief 2s
+	TAS_DEFAULT_EMU_TIMEOUT_MS = 15000, //!< \brief 15s for emulator connection
+}; 	
 #endif
 
 //! \brief TAS error information including c-string and an error code.
@@ -50,7 +56,7 @@ inline tas_return_et tas_clear_error_info(tas_error_info_st* ei)
 	return TAS_ERR_NONE;
 }
 
-//! \brief Forces the caller to handel server connection error
+//! \brief Forces the caller to handle server connection error
 //! \param ei Pointer to an error information
 //! \returns \ref TAS_ERR_SERVER_CON
 inline tas_return_et tas_client_handle_error_server_con(tas_error_info_st* ei)

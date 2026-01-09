@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -22,13 +22,13 @@
 // Standard includes
 #include <cassert>
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__MINGW32__)
 static bool winsock_init_done = false;
 #endif
 
 CTasSocket::CTasSocket(int type, int protocol) 
 {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__MINGW32__)
 	// WinSock initialization, should be done just once
 	if (!winsock_init_done) 
 	{
@@ -191,7 +191,7 @@ bool CTasSocket::set_local_addr_and_port(const char* addr, unsigned short port) 
 
 void CTasSocket::close()
 {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__MINGW32__)
 	closesocket(mSocketDesc);
 #else
 	::close(mSocketDesc);

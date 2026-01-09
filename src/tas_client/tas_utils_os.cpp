@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -26,8 +26,9 @@
 #include <cstdio>
 #include <cassert>
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__MINGW32__)
 #include <windows.h>
+#include <shellapi.h>
 #include <process.h>
 
 void tasutil_get_user_name(char *user_name)
@@ -47,15 +48,15 @@ bool tasutil_check_local_tas_server_is_running()
 
 	GetLastError();  // Clear old errors
 	HANDLE hMutex = OpenMutexW(SYNCHRONIZE, FALSE, L"Global\\only_one_TasServer_on_host");
-	DWORD lastError = GetLastError();
-	if (lastError != ERROR_SUCCESS) {
+	if (hMutex == NULL) {
+		DWORD lastError = GetLastError();
 		assert(lastError == ERROR_FILE_NOT_FOUND);
 		return false;  // TasServer is NOT running
 	}
-	CloseHandle(hMutex);  // Not needed
-
+	CloseHandle(hMutex);
 	return true;  // TasServer is running
 }
+
 
 void tasutil_start_local_tas_server()
 {
@@ -82,21 +83,6 @@ void tasutil_start_local_tas_server()
 		assert(winError == ERROR_INVALID_FUNCTION); // For 64 bit applications, Wow64DisableWow64FsRedirection() fails with ERROR_INVALID_FUNCTION error
 		isWoW64 = FALSE;
 	}
-
-	PROCESS_INFORMATION processInfo;
-	STARTUPINFO         startupInfo;
-	ZeroMemory(&startupInfo, sizeof(startupInfo));
-	//startupInfo.cb = sizeof startupInfo;
-	//int success = CreateProcessA(applicationPath, NULL, NULL, NULL, FALSE, 0, NULL, NULL,
-	//	&startupInfo, &processInfo);
-
-	//if (!success) {
-	//	DWORD winError = GetLastError();  // Just for debugging
-	//	return;
-	//}
-
-	//CloseHandle(processInfo.hThread);   // Not needed
-	//CloseHandle(processInfo.hProcess);  // Not needed
 
 	HINSTANCE success = ShellExecuteA(0, "open", applicationPath, NULL, NULL, 0);
 	if (success < (HINSTANCE)32) {

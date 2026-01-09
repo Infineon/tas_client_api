@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2024 Infineon Technologies AG.
+#  Copyright (c) 2026 Infineon Technologies AG.
 #
 #  This file is part of TAS Client, an API for device access for Infineon's 
 #  automotive MCUs. 

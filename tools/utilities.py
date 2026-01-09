@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2024 Infineon Technologies AG.
+#  Copyright (c) 2026 Infineon Technologies AG.
 #
 #  This file is part of TAS Client, an API for device access for Infineon's 
 #  automotive MCUs. 
@@ -29,7 +29,7 @@ def run(cmd, error=False):
     print("----- OUTPUT -------")
     while True:
         out = process.stdout.readline()
-        out = out.decode("utf-8")
+        out = out.decode("utf-8", errors="ignore")
 
         ret = process.poll()
         if out == "" and ret is not None:
@@ -56,3 +56,12 @@ def get_project_version(cmake_file):
         content = f.read()
         pkgVersion = re.search(r"project((.|\n)*)VERSION (.*)", content).group(3)
     return pkgVersion
+
+# Helper function to get the current git branch name
+def get_active_branch_name():
+    head_dir = Path(".") / ".git" / "HEAD"
+    with head_dir.open("r") as f: content = f.read().splitlines()
+
+    for line in content:
+        if line[0:4] == "ref:":
+            return line.partition("refs/heads/")[2]

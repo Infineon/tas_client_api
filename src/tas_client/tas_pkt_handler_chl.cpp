@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -107,6 +107,11 @@ tas_return_et CTasPktHandlerChl::set_pkt_rsp_subscribe(const uint32_t* pkt_rsp, 
 			mEip->tas_err = TAS_ERR_CHL_SETUP;
 			return mEip->tas_err;
 		}
+		else if (pkt->err == TAS_PL_ERR_PARAM) {
+			snprintf(mEip->info, TAS_INFO_STR_LEN, "ERROR: Wrong parameter for this type of channel");
+			mEip->tas_err = TAS_ERR_FN_PARAM;
+			return mEip->tas_err;
+		}
 		else {
 			return mSetPktRspErrConnectionProtocol();
 		}
@@ -115,39 +120,6 @@ tas_return_et CTasPktHandlerChl::set_pkt_rsp_subscribe(const uint32_t* pkt_rsp, 
 	*cht  = (tas_cht_et)pkt->cht;
 	*chso = (tas_chso_et)pkt->chso;
 	*prio = pkt->prio;
-
-	return tas_clear_error_info(mEip);
-}
-
-const uint32_t* CTasPktHandlerChl::get_pkt_rq_unsubscribe(uint8_t chl)
-{
-	assert(chl < TAS_CHL_NUM_MAX);
-	mChl = chl;
-
-	const uint32_t pl1PktSize = sizeof(tas_pl1rq_chl_unsubscribe_st);
-	mRqBuf[0] = 4 + pl1PktSize;
-	auto pkt = (tas_pl1rq_chl_unsubscribe_st*)&mRqBuf[1];
-	pkt->wl = (pl1PktSize / 4) - 1;
-	pkt->cmd = TAS_PL1_CMD_CHL_UNSUBSCRIBE;
-	pkt->chl = chl;
-	pkt->reserved = 0;
-	return mRqBuf;
-}
-
-tas_return_et CTasPktHandlerChl::set_pkt_rsp_unsubscribe(const uint32_t* pkt_rsp)
-{
-	auto pkt = (const tas_pl1rsp_chl_unsubscribe_st*)&pkt_rsp[1];
-
-	const uint32_t pl1PktSize = sizeof(tas_pl1rsp_chl_unsubscribe_st);
-	if (pkt_rsp[0] != 4 + pl1PktSize) {
-		return mSetPktRspErrConnectionProtocol();
-	}
-	if ((pkt->cmd != TAS_PL1_CMD_CHL_UNSUBSCRIBE) || (pkt->wl != (pl1PktSize / 4) - 1) || (pkt->err != TAS_PL_ERR_NO_ERROR)) {
-		return mSetPktRspErrConnectionProtocol();
-	}
-	if (pkt->chl != mChl) {
-		return mSetPktRspErrConnectionProtocol();
-	}
 
 	return tas_clear_error_info(mEip);
 }
@@ -184,7 +156,7 @@ const uint32_t* CTasPktHandlerChl::get_pkt_send_msg(uint8_t chl, const void* msg
 	return mRqBuf;
 }
 
-tas_return_et CTasPktHandlerChl::set_pkt_rcv_msg(const uint32_t* pkt_rsp, uint8_t chl, const void** msg, uint16_t* msg_length, uint32_t* init)
+tas_return_et CTasPktHandlerChl::set_pkt_rcv_msg(const uint32_t* pkt_rsp, uint8_t chl, const uint32_t** msg, uint16_t* msg_length, uint32_t* init)
 {
 	*msg = nullptr;
 	*msg_length = 0;
@@ -208,7 +180,11 @@ tas_return_et CTasPktHandlerChl::set_pkt_rcv_msg(const uint32_t* pkt_rsp, uint8_
 		return mSetPktRspErrConnectionProtocol();
 	}
 	assert(pkt->reserved == 0);
-	if ((pkt->cmd != TAS_PL1_CMD_CHL_MSG_D2C) || (pkt->wl != (pl1PktSize / 4) - 1)) {
+	if ((pkt->cmd != TAS_PL1_CMD_CHL_MSG_D2C) && 
+		(pkt->cmd != TAS_PL1_CMD_CHL_MSG_LARGE)) {
+		return mSetPktRspErrConnectionProtocol();
+	}
+	if (pkt->wl != (pl1PktSize / 4) - 1) {
 		return mSetPktRspErrConnectionProtocol();
 	}
 	if (pkt->err == TAS_PL1_ERR_DEV_RESET) {
@@ -221,8 +197,11 @@ tas_return_et CTasPktHandlerChl::set_pkt_rcv_msg(const uint32_t* pkt_rsp, uint8_
 		return mSetPktRspErrConnectionProtocol();
 	}
 	
-	if (uint32_t pl2Length = 4 + 8 + ((pkt->msg_length + 3) / 4) * 4; pkt_rsp[0] != pl2Length) {
-		return mSetPktRspErrConnectionProtocol();
+	if (pkt->cmd == TAS_PL1_CMD_CHL_MSG_D2C) {
+		uint32_t pl2Length = 4 + 8 + ((pkt->msg_length + 3) / 4) * 4;
+		if ( pkt_rsp[0] != pl2Length) {
+			return mSetPktRspErrConnectionProtocol();
+		}
 	}
 	if (pkt->chl != chl) {
 		return mSetPktRspErrConnectionProtocol();
@@ -230,6 +209,7 @@ tas_return_et CTasPktHandlerChl::set_pkt_rcv_msg(const uint32_t* pkt_rsp, uint8_
 
 	const uint32_t offset = (sizeof(uint32_t) + sizeof(tas_pl1rsp_chl_msg_d2c_st)) / sizeof(uint32_t); // packet size (1 word) + msg_d2c_st (2 words)
 	if (pkt->cho == TAS_CHO_INIT) {
+		assert(pkt->cmd != TAS_PL1_CMD_CHL_MSG_LARGE);
 		assert(pkt->msg_length >= 4);  // Is already checked above
 		*msg_length = pkt->msg_length - 4;
 		*msg = &pkt_rsp[offset+1];
@@ -237,7 +217,10 @@ tas_return_et CTasPktHandlerChl::set_pkt_rcv_msg(const uint32_t* pkt_rsp, uint8_
 	}
 	else {
 		assert(pkt->cho == TAS_CHO_NONE);
-		*msg_length = pkt->msg_length;
+		if (pkt->cmd == TAS_PL1_CMD_CHL_MSG_LARGE)
+			*msg_length = pkt_rsp[0] - (4 * offset);
+		else
+			*msg_length = pkt->msg_length;
 		*msg = &pkt_rsp[offset];
 		*init = 0;
 	}

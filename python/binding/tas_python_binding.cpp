@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -18,6 +18,7 @@
  *  **************************************************************************************************************** */
 
 #include "tas_python_binding.hpp"
+#include "tas_pkt.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -43,6 +44,13 @@ PYBIND11_MODULE(PyTAS, m) {
            CTasClientRwBase
            CTasClientRw
     )pbdoc";
+
+    // Expose the enum values to Python as constants
+    py::enum_<TasDefaultPorts>(m, "TasDefaultPorts", "TAS default port numbers") 
+        .value("TAS_PORT_NUM_SERVER_DEFAULT", TAS_PORT_NUM_SERVER_DEFAULT, "Default TAS server port number") 
+        .value("TAS_PORT_NUM_PROXY_DEFAULT", TAS_PORT_NUM_PROXY_DEFAULT, "Default TAS proxy port number") 
+        .value("TAS_PORT_NUM_DEVICE_DEFAULT", TAS_PORT_NUM_DEVICE_DEFAULT, "Default port number for direct Ethernet connection with a device") 
+        .export_values(); 
 
     py::class_<tas_server_info_st>(m, "TasServerInfo")
         .def(py::init<>())
@@ -186,7 +194,6 @@ PYBIND11_MODULE(PyTAS, m) {
             .value("TAS_ERR_CHL_SETUP", tas_return_et::TAS_ERR_CHL_SETUP)
             .value("TAS_ERR_CHL_SEND", tas_return_et::TAS_ERR_CHL_SEND)
             .value("TAS_ERR_CHL_RCV", tas_return_et::TAS_ERR_CHL_RCV)
-            .value("TAS_ERR_TRC_RCV", tas_return_et::TAS_ERR_TRC_RCV)
             .export_values();
 
     py::enum_ <TasAddrMap>(m, "TasAddrMap")
@@ -201,6 +208,7 @@ PYBIND11_MODULE(PyTAS, m) {
     py::enum_ <tas_chl_target_et>(m, "TasChlTarget")
             .value("TAS_CHL_TGT_UNKNOWN", tas_chl_target_et::TAS_CHL_TGT_UNKNOWN)
             .value("TAS_CHL_TGT_DMM", tas_chl_target_et::TAS_CHL_TGT_DMM)
+            .value("TAS_CHL_TGT_TRC", tas_chl_target_et::TAS_CHL_TGT_TRC)
             .export_values();
 
     py::enum_ <tas_dev_unlock_cr_option_et>(m, "TasDevUnlockCrOption")
@@ -240,10 +248,13 @@ PYBIND11_MODULE(PyTAS, m) {
             .value("TAS_CHSO_EXCLUSIVE", tas_chso_et::TAS_CHSO_EXCLUSIVE)
             .export_values();
 
-    /*py::enum_ <tas_trct_et>(m, "TasTrct")
-            .value("TAS_TRCT_UNKNOWN", tas_trct_et::TAS_TRCT_UNKNOWN)
-            .value("TAS_TRCT_MTSC", tas_trct_et::TAS_TRCT_MTSC)
-            .export_values();*/
+    py::enum_ <tas_trc_type_et>(m, "TasTrcType")
+        .value("TAS_TRC_T_UNKNOWN", tas_trc_type_et::TAS_TRC_T_UNKNOWN, "Unknown trace type as status")
+        .value("TAS_TRC_T_ANY", tas_trc_type_et::TAS_TRC_T_ANY, "Any trace type as request")
+        .value("TAS_TRC_T_MTSC_IFTG", tas_trc_type_et::TAS_TRC_T_MTSC_IFTG, "MTSC container with If Full Trace Gap (IFTG) behavior")
+        .value("TAS_TRC_T_MTSC_IFSD", tas_trc_type_et::TAS_TRC_T_MTSC_IFSD, "MTSC container with If Full Suspend Device (IFSD) behavior")
+        .value("TAS_TRC_T_DUMMY", tas_trc_type_et::TAS_TRC_T_DUMMY, "Dummy trace data in 1kByte blocks. First 64 bit is a counter")
+        .export_values();
 
     py::enum_ <tas_rw_trans_type_et>(m, "TasRwTransType")
             .value("TAS_RW_TT_RD", tas_rw_trans_type_et::TAS_RW_TT_RD)
@@ -346,21 +357,39 @@ PYBIND11_MODULE(PyTAS, m) {
             .def(py::init<const char *>())
             .def("session_start", &TasClientChl::session_start, "A function to connect to a target device", "identifier"_a, "session_id"_a="", "session_pw"_a="", "chl_target"_a=(tas_chl_target_et)1, "chl_param"_a=0)
             .def("subscribe", &TasClientChl::subscribe, "Subscribe to a channel", "chl"_a, "cht"_a, "chso"_a=(tas_chso_et)0x1, "prio"_a=0)
-            .def("unsubscribe", &TasClientChl::unsubscribe, "Unsubscribe from a channel")
             .def("send_msg", &TasClientChl::send_msg, "Send bytes as message", "msg"_a, "init"_a=0)
             .def("send_string", &TasClientChl::send_string, "Send a string as a message", "msg"_a, "init"_a=0)
             .def("rcv_msg", &TasClientChl::rcv_msg, "Receive message as bytes", "timeout_ms"_a)
             .def("rcv_string", &TasClientChl::rcv_string, "Receive a string as a message", "timeout_ms"_a);
-
-    /*
-        Not implemented on C++ yet
-  
-    py::class_<TasClientTrc>(m, "TasClientTrc")
-            .def(py::init<>())
-            .def("subscribe", &TasClientTrc::subscribe, "stream"_a=0, "chso"_a=(tas_chso_et)0)
-            .def("unsubscribe", &TasClientTrc::unsubscribe, "stream"_a=0)
-            .def("rcv_trace", &TasClientTrc::rcv_trace, "timeout_ms"_a, "stream"_a=0);
-    */
+    
+    py::class_<CTasClientTrc>(m, "TasClientTrc")
+        .def(py::init<const char*>(), py::arg("client_name"), "Object constructor. Mandatory client name as a c-string.")
+        .def("get_error_info",          &CTasClientTrc::get_error_info, 
+            "Get current error information string. Returns a pointer to a c-string containing current error information.")
+        .def("server_connect",          &CTasClientTrc::server_connect,     py::arg("ip_addr"), py::arg("port_num") = TAS_PORT_NUM_SERVER_DEFAULT, 
+            "Establishes a connection to a TAS server. In case of TAS_ERR_SERVER_LOCKED use server_unlock() and optional get_server_challenge() before.")
+        .def("get_server_info",         &CTasClientTrc::get_server_info, 
+            "Get server's information. Returns a pointer to the server information from the last server_connect() call, nullptr if no server connected.")
+        .def("get_server_challenge",    &CTasClientTrc::get_server_challenge, 
+            "Get a challenge from a server. Returns the server challenge from the last server_connect() call, 0 if no challenge.")
+        .def("server_unlock",           &CTasClientTrc::server_unlock,      py::arg("key"), py::arg("key_length"), 
+            "Unlock a server. Returns TAS_ERR_NONE on success, otherwise any other relevant TAS error code.")
+        .def("session_start",           &CTasClientTrc::session_start,      py::arg("identifier"), py::arg("session_name") = "", py::arg("session_pw") = "", 
+            "Start a connection session. Returns TAS_ERR_NONE on success, otherwise any other relevant TAS error code.")
+        .def("subscribe",               &CTasClientTrc::subscribe,          py::arg("chso") = TAS_CHSO_DEFAULT, py::arg("prio") = 31, py::arg("trace_type") = TAS_TRC_T_ANY, py::arg("stream") = 0, 
+            "Subscribe trace. Returns TAS_ERR_NONE on success, otherwise any other relevant TAS error code.")
+        .def("get_trace",               [](CTasClientTrc& self, uint32_t timeout_ms) {
+                                            const uint32_t* trace_data;
+                                            uint32_t length;
+                                            tas_trc_state_st trc_state;
+                                            tas_return_et result = self.get_trace(timeout_ms, &trace_data, &length, &trc_state);
+                                            return py::make_tuple(trace_data, length, trc_state, result);
+                                        },                                  py::arg("timeout_ms"), 
+            "Get received trace data. It is a blocking function with timeout. Returns TAS_ERR_NONE on success, otherwise any other relevant TAS error code.")
+        .def("device_reset_occurred",   &CTasClientTrc::device_reset_occurred, 
+            "Performs a check if device reset has occurred. Returns true if reset occurred, otherwise false.")
+        .def("target_ping",             &CTasClientTrc::target_ping,        py::arg("con_info"), 
+            "Send a ping to a target and obtain connection info. Only needed for special use cases and debugging.");
 
 
 

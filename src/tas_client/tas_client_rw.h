@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -41,11 +41,12 @@ public:
 	//! \returns \ref TAS_ERR_NONE on success, otherwise any other relevant TAS error code 
 	tas_return_et session_start(const char* identifier, const char* session_name = "", const char* session_pw = "")
 	{
-		tas_return_et ret = mSessionStart(TAS_CLIENT_TYPE_RW, identifier, session_name, session_pw);
+		const tas_con_info_st* conInfo;
+		tas_return_et ret = mSessionStart(TAS_CLIENT_TYPE_RW, identifier, session_name, session_pw, &conInfo);
 
 		assert(mTphRw == nullptr);
 		if (ret == TAS_ERR_NONE) {
-			mTphRw = new CTasPktHandlerRw(&mEi, get_con_info());
+			mTphRw = new CTasPktHandlerRw(&mEi, conInfo);
 		}
 		return ret;
 	}
@@ -91,7 +92,7 @@ public:
 		, CTasClientServerCon(client_name, &mEi)
 	{
 		mMbIfRw = mMbSocket;
-		mMbIfRw->config(rw_get_timeout(), CTasPktHandlerRw::RSP_PKT_BUF_SIZE_DEFAULT);
+		mMbIfRw->config(TAS_DEFAULT_TIMEOUT_MS, CTasPktHandlerRw::RSP_PKT_BUF_SIZE_DEFAULT);
 	};
 
 	//! \brief Read/Write client object constructor

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -39,7 +39,7 @@ CTasClientRwBase::CTasClientRwBase(CTasPktMailboxIf* mb_if, uint32_t max_rq_size
 	: mRspBuf(max_rsp_size / 4),
 	  mMbIfRw(mb_if)
 {
-	mMbIfRw->config(mTimeoutMs, max_rsp_size);
+	mMbIfRw->config(TAS_DEFAULT_TIMEOUT_MS, max_rsp_size);
 	mTphRw = new CTasPktHandlerRw(&mEi, max_rq_size, max_rsp_size, max_num_rw);
 }
 
@@ -264,16 +264,3 @@ uint32_t CTasClientRwBase::rw_get_trans_rsp(const tas_rw_trans_rsp_st** trans_rs
 
 	return mTphRw->rw_get_trans_rsp(trans_rsp);
 }
-
-void CTasClientRwBase::rw_set_timeout(uint32_t timeout_ms)
-{
-	assert(timeout_ms >= 100);     // 100ms
-	assert(timeout_ms <= 100000);  // 100s
-	mTimeoutMs = timeout_ms;
-}
-
-uint32_t CTasClientRwBase::rw_get_timeout() 
-{
-	return mTimeoutMs;
-}
-

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -34,11 +34,29 @@
 #include <thread>
 #include <cstdint>
 #include <cassert>
-#include <cstring>
+#include <cctype>
 #include <cstdio>
+#include <cstring>
 #include <array>
 
-#define _unused(x)	((void)(x))	//!< \brief Specifies an unused varable or paramter
+#define _unused(x)	((void)(x))	//!< \brief Specifies an unused variable or paramter
+
+//! \brief Safe and case insensitive string compare
+inline int tasutil_strcmp_nocase(const char* str1, const char* str2, int num_char)
+{
+	int i, c1 = 0, c2 = 0;
+	for (i = 0; i < num_char; i++) {
+		c1 = str1[i];
+		c2 = str2[i];
+		if ((c1 == 0) || (c2 == 0))
+			break;
+		c1 = tolower(str1[i]);
+		c2 = tolower(str2[i]);
+		if (c1 != c2)
+			break;
+	}
+	return c1 - c2;
+}
 
 //! \brief Acquire time since epoch in microseconds.
 //! \returns time since epoch in us
@@ -117,7 +135,7 @@ enum { TASUTIL_TIME_STR_BUF_SIZE = 20 };
 //! \param str_buf pointer to a string buffer
 inline void tasutil_get_time_str(time_t time, char* str_buf)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__MINGW32__)
 	struct tm timeTm;
 	localtime_s(&timeTm, &time);
 	strftime(str_buf, 20, "%Y-%m-%d %H:%M:%S", &timeTm);
@@ -263,24 +281,114 @@ enum { TASUTIL_HASH32_STRBUF_SIZE = 8 };  // 6 + zero char would suffice
 //! \param hash32_str pointer to a c-string representing the hash32
 void tasutil_hash32_to_str(uint32_t hash32, char* hash32_str);
 
-//! \brief Check if the device identifier corresponds to TCP/IP identifier, which should be an IP address.
+//! \brief Check if the device identifier is a TRCUDP identifier
 //! \param identifier device identifier
-//! \returns \c true if yes, otherwise \c false
-inline bool tasutil_check_if_tcpip_identifier(const char* identifier)
+//! \returns \c port number, otherwise \c 0
+inline uint16_t tasutil_check_if_trcudp_identifier(const char* identifier)
 {
 	assert(strlen(identifier) < TAS_NAME_LEN64);
-	int nItems;
-	int a;
-	int b;
-	int c;
-	int d;
+	int nItems, portNum;
+	char trcudpStr[8];
 
 #ifdef _MSC_VER
-	nItems = sscanf_s(identifier, "%d.%d.%d.%d", &a, &b, &c, &d);
+	nItems = sscanf_s(identifier, "%6s %d", trcudpStr, (unsigned)_countof(trcudpStr), &portNum);
 #else
-	nItems = sscanf(identifier, "%d.%d.%d.%d", &a, &b, &c, &d);
+	nItems = sscanf(identifier, "%6s %d", trcudpStr, &portNum);
 #endif
-	return (nItems == 4);
+
+	if (nItems != 2)
+		return 0;
+
+	if (tasutil_strcmp_nocase(trcudpStr, "TRCUDP", 6) != 0)
+		return 0;
+
+	if ((portNum > 0xFFFF) || (portNum < 1))
+		return 0;
+
+	return (uint16_t)portNum;
+}
+
+//! \brief Case insensitive check if input string starts with "edas".
+//! \param str input string to check
+//! \returns \c true if string starts with any of the specified prefixes, otherwise \c false
+inline bool tasutil_check_if_edas_identifier(const char* identifier)
+{
+	assert(strlen(identifier) < TAS_NAME_LEN64);
+	return (tasutil_strcmp_nocase(identifier, "edas", 4) == 0);  // Infineon legacy
+}
+
+
+//! \brief Case insensitive check if input string starts with "edas" or "emulator".
+//! \param str input string to check
+//! \returns \c true if string starts with any of the specified prefixes, otherwise \c false
+inline bool tasutil_check_if_emulator_identifier(const char* identifier)
+{
+	assert(strlen(identifier) < TAS_NAME_LEN64);
+
+	if (tasutil_check_if_edas_identifier(identifier))  // Infineon legacy
+		return true;
+
+	if (tasutil_strcmp_nocase(identifier, "emulator", 8) == 0)
+		return true;
+
+	return false;
+}
+
+
+//! \brief Get standardized identifier to enable a robust simple string comparison
+//! \param identifier device identifier
+//! \param identifier_sf buffer[TAS_NAME_LEN64] for standard format identifier
+inline void tasutil_get_standard_format_identifier(const char* identifier, char* identifier_sf)
+{
+	assert(strlen(identifier) < TAS_NAME_LEN64);
+
+	// TCPIP
+	uint16_t portNum;
+	int nItems, a, b, c, d, pn;
+	nItems = sscanf(identifier, "%d.%d.%d.%d %d", &a, &b, &c, &d, &pn);  // Not sscanf_s since no string assignment
+	if (nItems == 4) {
+		// Support gdb remote debugging syntax with port number like 192.168.2.1:1234
+		nItems = sscanf(identifier, "%d.%d.%d.%d : %d", &a, &b, &c, &d, &pn);  // Tolerant against optional spaces around ':'
+	}
+	if (nItems >= 4) {
+		portNum = (nItems == 5) ? (uint16_t)pn : TAS_PORT_NUM_DEVICE_DEFAULT;
+		snprintf(identifier_sf, TAS_NAME_LEN64, "%d.%d.%d.%d %d", a, b, c, d, portNum);
+		return;
+	}
+
+	// TRCUDP
+	portNum = tasutil_check_if_trcudp_identifier(identifier);
+	if (portNum > 0) {
+		snprintf(identifier_sf, TAS_NAME_LEN64, "TRCUDP %d", portNum);
+		return;
+	}
+
+	// EDAS
+	if (tasutil_check_if_edas_identifier(identifier)) {
+		snprintf(identifier_sf, TAS_NAME_LEN64, "edas%s", identifier+4);  // Lower case is standard
+		return;
+	}
+
+	snprintf(identifier_sf, TAS_NAME_LEN64, "%s", identifier);
+}
+
+//! \brief Check if the device identifier corresponds to TCP/IP identifier, which should be an IP address.
+//! \param identifier device identifier
+//! \returns \c port number, otherwise \c 0
+inline uint16_t tasutil_check_if_tcpip_identifier(const char* identifier)
+{
+	assert(strlen(identifier) < TAS_NAME_LEN64);
+
+	char identifierSf[TAS_NAME_LEN64];
+	tasutil_get_standard_format_identifier(identifier, identifierSf);
+
+	int nItems, a, b, c, d, pn;
+	nItems = sscanf(identifierSf, "%d.%d.%d.%d %d", &a, &b, &c, &d, &pn);  // Not sscanf_s since no string assignment
+
+	if (nItems == 5)
+		return (uint16_t)pn;
+	else
+		return 0;
 }
 
 //! \brief Extract an unsigned 64-bit value from a string.
@@ -332,35 +440,5 @@ bool tasutil_check_local_tas_server_is_running();
 
 //! \brief Start a local TAS server. Windwos only.
 void tasutil_start_local_tas_server();
-
-//! \brief Class not used anywhere
-class CTasutilDeviceFrequ
-{
-public:
-
-	CTasutilDeviceFrequ();
-
-	void add_timer_sample(uint32_t timer_value, uint64_t timestamp_before_us, uint64_t timestamp_after_us);
-
-	void get_timer_frequency(double* frequency_hz, double* max_deviation_hz) const;
-
-	void clear() {
-		mClearRefValue();
-		mClearValue();
-	}
-
-private:
-
-	void mClearRefValue();
-	void mClearValue();
-
-	uint32_t mRefTimerValue;
-	uint32_t mTimerValue;
-	uint64_t mRefTimestampBeforeUs;
-	uint64_t mRefTimestampAfterUs;
-	uint64_t mTimestampBeforeUs;
-	uint64_t mTimestampAfterUs;
-
-};
 
 //! \} // end of group TAS_utils

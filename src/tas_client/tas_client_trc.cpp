@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -22,76 +22,57 @@
 // Standard includes
 #include <cassert>
 
-CTasClientTrc::CTasClientTrc()
+CTasClientTrc::CTasClientTrc(const char* client_name)
+	:  mClientChl(client_name)
 {
-	assert(mMbIfTrc);
+	
 }
 
-CTasClientTrc::CTasClientTrc(CTasPktMailboxIf* mb_if) : mMbIfTrc(mb_if)
+tas_return_et CTasClientTrc::subscribe(tas_chso_et chso, uint8_t prio, tas_trc_type_et trace_type, uint8_t stream)
 {
+	tas_return_et ret;
+	ret = mClientChl.subscribe(TAS_CHL_NUM_TRC, TAS_CHT_BIDI, chso, &prio);
 
+	if (ret == TAS_ERR_NONE) {
+		mTrcSubscribe = { (uint8_t)trace_type, stream, 0, 0 };
+		ret = mClientChl.send_msg(&mTrcSubscribe, sizeof(mTrcSubscribe), TAS_TRC_CMD_SUBSCRIBE);
+	}
+	else {
+		mTrcSubscribe = {};
+	}
+	return ret;
 }
 
-tas_return_et CTasClientTrc::subscribe(tas_trc_type_et* trct, uint8_t stream, tas_chso_et chso)
+
+tas_return_et CTasClientTrc::get_trace(uint32_t timeout_ms, const uint32_t** trace_data, uint32_t* length, tas_trc_state_st* trc_state)
 {
-	const uint32_t *pktRq, *pktRsp;
-	pktRq = mTphTrc->get_pkt_rq_subscribe(stream, chso);
+	const uint32_t* msg;
+	uint32_t msgLength, init;
+	tas_return_et ret;
+	ret = mClientChl.rcv_msg(timeout_ms, &msg, &msgLength, &init);
 
-	if (!mMbIfTrc->execute(pktRq, (uint32_t*)&pktRsp))
-		return tas_client_handle_error_server_con(&mEi);
+	if (ret == TAS_ERR_NONE) {
+		tas_trc_state_st* trcState = (tas_trc_state_st*)&msg[0];
+		assert(trcState->stream == mTrcSubscribe.stream);
+		assert(trcState->stream_state > TAS_TRCS_UNKNOWN);
 
-	tas_chso_et chsoRsp;
-	if (mTphTrc->set_pkt_rsp_subscribe(pktRsp, trct, &chsoRsp))
-		return mEi.tas_err;
+		assert(sizeof(tas_trc_state_st) == 4);
+		assert(msgLength >= (4 + 1024));
+		assert((msgLength - 4) % 1024 == 0);
 
-	return tas_clear_error_info(&mEi);
-}
-
-tas_return_et CTasClientTrc::unsubscribe(uint8_t stream)
-{
-	const uint32_t *pktRq, *pktRsp;
-	pktRq = mTphTrc->get_pkt_rq_unsubscribe(stream);
-
-	if (!mMbIfTrc->execute(pktRq, (uint32_t*)&pktRsp))
-		return tas_client_handle_error_server_con(&mEi);
-
-	if (!mTphTrc->set_pkt_rsp_unsubscribe(pktRsp))
-		return mEi.tas_err;
-
-	return tas_clear_error_info(&mEi);
-}
-
-tas_return_et CTasClientTrc::rcv_trace(uint32_t timeout_ms, const void** trace_data, uint32_t* length, tas_trcs_et* trcs, uint8_t* stream)
-
-{
-	*trace_data = nullptr;
-	*length = 0;
-	*trcs = TAS_TRCS_CONT;
-	if (stream)
-		*stream = 0xFF;
-
-	mMbIfTrc->config(timeout_ms, TAS_PL2_MAX_PKT_SIZE);
-
-	uint32_t* pktRsp = nullptr; assert(false);  // Need to implement this
-	uint32_t rspNumBytesReceived;
-	if (!mMbIfTrc->receive(pktRsp, &rspNumBytesReceived))
-		return tas_client_handle_error_server_con(&mEi);
-
-	if (rspNumBytesReceived == 0) {
-		tas_clear_error_info(&mEi);
-		return TAS_ERR_CHL_RCV;  // Not TAS_ERR_NONE
+		*trace_data = &msg[4/4];
+		*length = msgLength - 4;
+		memcpy(trc_state, &msg[0], 4);
+		memcpy(&mTrcStateLast, trc_state, 4);
+	}
+	else {
+		assert(ret == TAS_ERR_CHL_RCV);
+		*trace_data = nullptr;
+		*length = 0;
+		*trc_state = {};
+		mTrcStateLast = {};
 	}
 
-	const void* traceData; uint32_t lengthRcv; tas_trcs_et trcsRcv; uint8_t streamRcv;
-	if (mTphTrc->set_pkt_rcv_trace(pktRsp, &traceData, &lengthRcv, &trcsRcv, &streamRcv))
-		return mEi.tas_err;
-
-	*trace_data = traceData;
-	*length = lengthRcv;
-	*trcs = trcsRcv;
-	if (stream)
-		*stream = streamRcv;
-
-	return tas_clear_error_info(&mEi);
+	return ret;
 }
 

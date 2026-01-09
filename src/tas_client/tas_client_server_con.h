@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -145,6 +145,16 @@ public:
 	//! \returns \c true if at least one device reset occurred since the last call
 	virtual bool device_reset_occurred() = 0;
 
+	//! \brief Set the timeout for client-server connection operations.
+	//! \param timeout_ms timeout value in milliseconds, \c -1 means blocking operation, \c 0 means no timeout
+	//! \details If the timeout is set to \c 0, the underlying socket functions
+	//! will return immediately without waiting for a response.
+	//! Default timeout is 2s \ref TAS_DEFAULT_TIMEOUT_MS. Recommended for TAS clients. No need to call in this case.
+	//! \note Please note that a timeout is fatal so the server connection has to be setup again.
+	void set_client_timeout(int timeout_ms) {
+		mMbSocket->set_timeout(timeout_ms);
+	}
+
 protected:
 
 	//! \brief Client-Server connection object constructor. Instantiated by respective client object constructor.
@@ -164,6 +174,7 @@ protected:
 	//! \returns \ref TAS_ERR_NONE on success, otherwise any other relevant TAS error code
 	tas_return_et mSessionStart(tas_client_type_et client_type, 
 		                        const char* identifier, const char* session_name, const char* session_pw,
+								const tas_con_info_st** con_info,
 								tas_chl_target_et chl_target = TAS_CHL_TGT_UNKNOWN, uint64_t chl_param = 0);
 
 	//! \brief Connect to a device.

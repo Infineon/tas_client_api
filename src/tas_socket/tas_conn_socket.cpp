@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -99,9 +99,12 @@ int CTasConnSocket::send(const void* buf, int len, int timeout_ms)
 		timeout.tv_usec = timeout_ms == 0 ? 1 : (timeout_ms % 1000) * 1000;
 
 		ret = ::select(sockDesc + 1, nullptr, &setW, nullptr, &timeout);
+		if (ret == 0) { // Select returns 0 when timeout occurs
+			return -2; // timeout return val - different than error
+		}
 	}
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__MINGW32__)
 	flags = 0;
 #else
 	flags = MSG_NOSIGNAL;
@@ -111,20 +114,22 @@ int CTasConnSocket::send(const void* buf, int len, int timeout_ms)
 	return ret;
 }
 
-int CTasConnSocket::sendAll(const void* buf, int len, int timeout_ms)
+int CTasConnSocket::sendAll(const void* buf, int *len, int timeout_ms)
 {
 	int totalSent = 0;
-	int bytesLeft = len;
+	int bytesLeft = *len;
 	int n = 0;
 
-	while (totalSent < len) {
+	while (totalSent < *len) {
 		n = send((const char*)buf + totalSent, bytesLeft, timeout_ms);
-		if (n == -1) { break; }
+		if (n < 0) { break; } // error (-1) or timeout (-2)
 		totalSent += n;
 		bytesLeft -= n;
 	}
 
-	return n == -1 ? -1 : 0;
+	*len = totalSent; // return number actually sent here
+
+	return n < 0 ? n : 0; // error (-1) or timeout (-2), otherwise success (0)
 }
 
 int CTasConnSocket::recv(void* buf, int len, int timeout_ms)
@@ -144,12 +149,12 @@ int CTasConnSocket::recv(void* buf, int len, int timeout_ms)
 		timeout.tv_usec = timeout_ms == 0 ? 1 : (timeout_ms % 1000) * 1000;
 
 		ret = ::select(sockDesc + 1, &setR, nullptr, nullptr, &timeout);
-		if (ret == 0) {
-			return 1;  // Timeout is no error
+		if (ret == 0) { // Select returns 0 when timeout occurs
+			return -2; // timeout return val - different than error
 		}
 	}
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__MINGW32__)
 	flags = 0;
 #else
 	flags = MSG_NOSIGNAL;
@@ -159,20 +164,22 @@ int CTasConnSocket::recv(void* buf, int len, int timeout_ms)
 	return ret;
 }
 
-int CTasConnSocket::recvAll(void* buf, int len, int timeout_ms)
+int CTasConnSocket::recvAll(void* buf, int *len, int timeout_ms)
 {
 	int totalRecvd = 0;
-	int bytesLeft = len;
+	int bytesLeft = *len;
 	int n = 0;
 
-	while (totalRecvd < len) {
-		n = recv((char*)buf + totalRecvd, len, timeout_ms);
-		if (n == -1) { break; }
+	while (totalRecvd < *len) {
+		n = recv((char*)buf + totalRecvd, bytesLeft, timeout_ms);
+		if (n < 0) { break; } // error (-1) or timeout (-2)
 		totalRecvd += n;
 		bytesLeft -= n;
 	}
 
-	return n == -1 ? -1 : 0;
+	*len = totalRecvd; // return number actually received here
+
+	return n < 0 ? n : 0; // error (-1) or timeout (-2), otherwise success (0)
 }
 
 const char* CTasConnSocket::get_remote_ip()
@@ -226,7 +233,7 @@ bool CTasConnSocket::mConnectNonblock(const struct sockaddr* saptr, int salen, u
 	unsigned long mode = 1;
 	int sockDesc = get_socket_desc();
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64) || defined(__MINGW32__)
 	// set socket into non-blocking mode
 	if (ioctlsocket(sockDesc, FIONBIO, &mode) == SOCKET_ERROR)
 	{

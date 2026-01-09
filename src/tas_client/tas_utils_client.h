@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -68,7 +68,7 @@ inline tas_return_et tasutil_acc_hw_runled_off(CTasClientRw* tcrw)
 //! \returns \c true if yes, otherwise \c false
 inline bool tasutil_emulator_connected(CTasClientServerCon* client)
 {
-	return (strstr(client->get_con_info()->identifier, "Emulator") != NULL);;
+	return (strstr(client->get_con_info()->identifier, "Emulator") != NULL);
 }
 
 //! \} // end of group TAS_utils

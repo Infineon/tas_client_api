@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -87,7 +87,7 @@ CTasPktHandlerRw::~CTasPktHandlerRw()
     delete[] mRwTransRsp;
 }
 
-void CTasPktHandlerRw::rw_start()
+void CTasPktHandlerRw::rw_start(bool clear_list)
 {
     mNumPl2Pkt = 0;
 
@@ -128,6 +128,11 @@ void CTasPktHandlerRw::rw_start()
 
     mPl1CntOutstandingOldest = mPl1CntOutstandingLast + 1; 
     mGetPktRqWasCalled = false;
+
+    if (clear_list) {
+        mPl0Trans.clear();
+        mPl0TransRsp.clear();
+    }
 }
 
 void CTasPktHandlerRw::mPktAdd_SetAddrMapAccModeBaseAddr(uint8_t addr_map, uint16_t acc_mode, uint64_t addr)

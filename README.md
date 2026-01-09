@@ -1,3 +1,21 @@
+<!--
+ Copyright (c) 2026 Infineon Technologies AG.
+
+ This file is part of TAS Client, an API for device access for Infineon's 
+ automotive MCUs. 
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ ****************************************************************************************************************-->
 # Tool Access Socket (TAS) Client API source code
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/Infineon/tas_client_api/commits/master/)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/Infineon/tas_client_api/pulls)
@@ -94,6 +112,8 @@ conan build .
 ## Building using a build script
 Alternative you can use the CI build script for building the project. For available options run the script with the help
 flag (-h/--help). Build the project by invoking the CI build script with required options.
+
+Note: if build of docs is enabled the generated files will be saved under current user home directory.
 
 **Windows**
 ```

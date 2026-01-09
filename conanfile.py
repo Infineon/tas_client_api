@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2024 Infineon Technologies AG.
+#  Copyright (c) 2026 Infineon Technologies AG.
 #
 #  This file is part of TAS Client, an API for device access for Infineon's 
 #  automotive MCUs. 
@@ -20,6 +20,7 @@ from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
 from conan.tools.build import check_min_cppstd
 from conan.errors import ConanInvalidConfiguration
+from conan.tools.env import VirtualRunEnv, VirtualBuildEnv
 
 # for installing missing python packages
 import os
@@ -73,8 +74,8 @@ class TasClientApiRecipe(ConanFile):
 
     def validate(self):
         check_min_cppstd(self, "17")        
-        if self.settings.os == "Windows" and self.settings.arch != "x86_64":
-            raise ConanInvalidConfiguration("Only 64-bit architecture supported on Windows.")
+        if self.settings.os != "Windows" and self.settings.arch == "x86":
+            raise ConanInvalidConfiguration("32-bit (x86) architecture not supported on non-Windows platforms.")
 
     def system_requirements(self):
         # define system dependencies
@@ -88,31 +89,60 @@ class TasClientApiRecipe(ConanFile):
 
     def build_requirements(self):
         # define build tools dependencies
-        self.tool_requires("cmake/3.27.0")
+        pass
 
     def layout(self):
         cmake_layout(self)
         # This "includedirs" starts in the source folder, which is "." by default setting in cmake_layout                 
         self.cpp.source.components["tas_client"].includedirs = ["src/tas_client"]
         self.cpp.source.components["tas_socket"].includedirs = ["src/tas_socket"]
-        # compiled libraries "libdirs" will be inside the "build" folder, depending
-        # on the platform they will be in "build/Release" or directly in "build" folder
-        if self.settings.os != "Windows":
-            self.cpp.build.components["tas_client"].libdirs = ["src/tas_client"]
-            self.cpp.build.components["tas_socket"].libdirs = ["src/tas_socket"]
-        else:
-            self.cpp.build.components["tas_client"].libdirs = ["src/tas_client/"+str(self.settings.build_type)]
-            self.cpp.build.components["tas_socket"].libdirs = ["src/tas_socket/"+str(self.settings.build_type)]
+        # Support both single-config and multi-config CMake generators by advertising
+        # both possible output locations (non-existent libdirs are ignored by consumers).
+        build_type = str(self.settings.build_type)
+        self.cpp.build.components["tas_client"].libdirs = [
+            "src/tas_client",
+            f"src/tas_client/{build_type}",
+        ]
+        self.cpp.build.components["tas_socket"].libdirs = [
+            "src/tas_socket",
+            f"src/tas_socket/{build_type}",
+        ]
 
     def generate(self):
         # convert conan variables into build-system files
         deps = CMakeDeps(self)         # -> creates FindXXX.cmake (sets paths to XXX lib files in conan cache)
         deps.generate()
-        tc = CMakeToolchain(self)    # -> conantoolchain.cmake (variables translated from conan settings)        
+        tc = CMakeToolchain(self)    # -> conantoolchain.cmake (variables translated from conan settings)
+
+        # Customize preset names based on architecture
+        if self.settings.arch == "x86":
+            tc.presets_prefix = "conan-build32"
+            
         tc.cache_variables["TAS_CLIENT_API_BUILD_PYTHON"] = self.options.python
         tc.cache_variables["TAS_CLIENT_API_BUILD_DOCS"] = self.options.docs
         tc.cache_variables["TAS_CLIENT_API_BUILD_TEST"] = self.options.tests
         tc.generate()
+
+        re = VirtualRunEnv(self)
+        re.generate()
+        # Generate .env file for Visual Studio Code debug environment
+        result = []
+        envvars = re.vars()
+        for name, value in envvars.items():
+            result.append("{}={}".format(name, value))
+        
+        content = "\n".join(result)        
+        open(re.basename + "-" + str(self.settings.build_type).lower() + ".env", "w", encoding="utf-8").write(content)
+
+        be = VirtualBuildEnv(self)
+        be.generate()
+        result = []
+        envvars = be.vars()
+        for name, value in envvars.items():
+            result.append("{}={}".format(name, value))
+            
+        content = "\n".join(result)        
+        open(be.basename + "-" + str(self.settings.build_type).lower() + ".env", "w", encoding="utf-8").write(content)
         
 
     def build(self):
@@ -135,3 +165,6 @@ class TasClientApiRecipe(ConanFile):
 
         self.cpp_info.components["tas_socket"].libs = ["tas_socket"]
         self.cpp_info.components["tas_socket"].includedirs = ["include/tas_socket"]
+
+        if self.settings.os == "Windows":
+            self.cpp_info.components["tas_socket"].system_libs.append("ws2_32")

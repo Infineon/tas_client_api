@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2024 Infineon Technologies AG.
+#  Copyright (c) 2026 Infineon Technologies AG.
 #
 #  This file is part of TAS Client, an API for device access for Infineon's 
 #  automotive MCUs. 
@@ -19,7 +19,13 @@
 import os
 import platform
 import subprocess
+import argparse
 from utilities import run
+
+# Input arguments parsing
+parser = argparse.ArgumentParser("Test script for testing the TAS Client API")
+parser.add_argument("--build_dir", help="Path to build dir", default="build")
+args = parser.parse_args()
 
 current = os.getcwd()
 process = None
@@ -27,11 +33,11 @@ process = None
 if platform.system() == "Windows":
     process = subprocess.Popen("C:\\Windows\\System32\\tas_server.exe", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print(process.pid)
-    os.chdir(".\\build")
+    os.chdir(f".\\{args.build_dir}")
 
 else:
     process = subprocess.Popen("/usr/local/bin/tas_server", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    os.chdir("./build/Release/")
+    os.chdir(f"./{args.build_dir}/Release/")
 
 # Execute tests
 run("ctest -C Release")

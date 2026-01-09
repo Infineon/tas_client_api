@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -22,7 +22,7 @@
 #pragma once
 
 // Winsock library on windows
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(__MINGW32__)
 	#include <WinSock2.h>
 	#include <ws2tcpip.h>
 	#pragma comment (lib, "Ws2_32.lib")

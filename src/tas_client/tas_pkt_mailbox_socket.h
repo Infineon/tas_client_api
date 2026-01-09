@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -27,6 +27,11 @@
 
 // TAS Socket includes
 #include "tas_tcp_socket.h"
+
+// Standard includes
+#include <cstdint>
+
+constexpr uint32_t TIMEOUT_PAYLOAD_MS = 100; //!< \brief Timeout for receiving the payload of a packet
 
 //! \brief Derived mailbox class utilizing socket connection.
 class CTasPktMailboxSocket : public CTasPktMailboxIf
@@ -58,6 +63,14 @@ public:
 	bool receive(uint32_t* rsp, uint32_t* num_bytes_rsp);
 	bool execute(const uint32_t* rq, uint32_t* rsp, uint32_t num_pl2_pkt = 1, uint32_t* num_bytes_rsp = nullptr);
 
+	//! \brief Set the timeout for socket operations.
+	//! \param timeout_ms timeout value in milliseconds, \c -1 means blocking operation, \c 0 means no timeout
+	//! \details If the timeout is set to \c 0, the underlying socket functions
+	//! will return immediately without waiting for a response.
+	void set_timeout(int timeout_ms) {
+		mTimeoutMs = timeout_ms;
+	}
+
 private:
 
 	//! \brief Receive a PL2 packet
@@ -74,7 +87,7 @@ private:
 	//! \param w index in the mRspBuf
 	//! \param num_bytes number of expected bytes
 	//! \returns \c true on success, otherwise \c false
-	bool mSocketReceive(uint32_t w, uint32_t num_bytes); 
+	bool mSocketReceive(uint32_t w, uint32_t num_bytes, uint32_t timeout_ms = TIMEOUT_PAYLOAD_MS);
 
 	//! \brief Disconnect the socket. Used in case of a fetal error.
 	void mSocketDisconnect()  
@@ -85,7 +98,9 @@ private:
 
 	CTasTcpSocket* mSocket = nullptr;		//!< \brief Pointer to a socket instance which is connected to a TAS server
 
-	uint32_t mTimeoutMs = 0;	//!< \brief Timeout value in milliseconds for the receive operation
+	int mTimeoutMs = 0;	//!< \brief Timeout value in milliseconds for the receive operation, 
+						//!< \c -1 means blocking operation \c 0 means no timeout and underlying socket functions will 
+						//!< return immediately
 
 	uint32_t  mMaxNumBytesRsp = 0;	//!< \brief Defines the maximum number of bytes in a response packet
 

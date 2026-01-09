@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2024 Infineon Technologies AG.
+#  Copyright (c) 2026 Infineon Technologies AG.
 #
 #  This file is part of TAS Client, an API for device access for Infineon's 
 #  automotive MCUs. 
@@ -20,16 +20,8 @@ import os
 import re
 import platform
 from pathlib import Path
-from utilities import run
+from utilities import run, get_active_branch_name
 
-# Helper function to get the current git branch name
-def get_active_branch_name():
-    head_dir = Path(".") / ".git" / "HEAD"
-    with head_dir.open("r") as f: content = f.read().splitlines()
-
-    for line in content:
-        if line[0:4] == "ref:":
-            return line.partition("refs/heads/")[2]
 
 # Get the current working dir
 current = os.getcwd()
@@ -54,23 +46,36 @@ with cmakeFile.open("r") as f:
     print(f"Package version: {pkgVersion}")
 
 # Create the TAS Client API package & upload it 
+print("Uploading conan package...")
 run(f"conan create . --user=ifx --channel={pkgMaturity}")
+if platform.system() == "Windows":
+    run(f"conan create . --user=ifx --channel={pkgMaturity} -pr:b default -pr:h win32") # 32-bit Windows build
 run(f"conan upload tas_client_api/{pkgVersion}@ifx/{pkgMaturity} -r=conan-atv-debug-tools-local")
+print("...done!")
 
 # Uploading TAS Client API python wrapper wheel
-if platform.system() == "Windows":
-    if os.path.exists(".\\build\\python\\"):
-        os.chdir(".\\build\\python\\")
-        run("python setup.py bdist_wheel upload -r local")
-    else:
-        print("Python wrapper not build, skipped uploading the wheel.")
-
+print("Uploading Python wheels...")
+if gitBranch == "master":
+    repo = "local"
 else:
-    if os.path.exists("./build/Release/python/"):
-        os.chdir("./build/Release/python/")
-        run("python3 setup.py bdist_wheel upload -r local")
+    repo = "local-dev"
+
+python_vers = ["python39", "python310", "python311", "python312", "python313"]
+for python_ver in python_vers:
+    if platform.system() == "Windows":
+        path = os.path.join("build", f"{python_ver}-tas_client_api", "python")
+        if os.path.exists(path):
+            run(f"build\\{python_ver}-tas_client_api\\python\\pytas_venv\\Scripts\\python -m twine upload -r {repo} build/{python_ver}-tas_client_api/python/dist/*.whl")
+        else:
+            print(f"Python wrapper not build for {python_ver}, skipped uploading the wheel.")
+
     else:
-        print("Python wrapper not build, skipped uploading the wheel.")
+        path = os.path.join("build", f"{python_ver}-tas_client_api", "Release", "python")
+        if os.path.exists(path):
+            run(f"build/{python_ver}-tas_client_api/Release/python/pytas_venv/bin/python3 -m twine upload -r {repo} build/{python_ver}-tas_client_api/Release/python/dist/*.whl")
+        else:
+            print(f"Python wrapper not build for {python_ver}, skipped uploading the wheel.")
+print("...done!")
 
 # Restoring the environment
 os.chdir(current)

@@ -3,3 +3,5 @@ build
 wheel
 numpy
 pybind11-stubgen
+twine
+toml

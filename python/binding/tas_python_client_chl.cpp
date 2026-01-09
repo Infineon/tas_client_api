@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -28,17 +28,13 @@ tas_return_et TasClientChl::subscribe(uint8_t chl, tas_cht_et cht, tas_chso_et c
     return client.subscribe(chl, cht, chso, prio);
 }
 
-tas_return_et TasClientChl::unsubscribe(){
-    return client.unsubscribe();
-}
-
 tas_return_et TasClientChl::send_msg(pybind11::bytes message, uint32_t init){
     char* msg;
     Py_ssize_t msg_length;
 
     PyBytes_AsStringAndSize(message.ptr(), &msg, &msg_length);
 
-    return client.send_msg((const void*)msg, (uint16_t)msg_length, init);
+    return client.send_msg((const void*)msg, (uint32_t)msg_length, init);
 }
 
 tas_return_et TasClientChl::send_string(std::string message, uint32_t init){
@@ -49,7 +45,7 @@ tas_return_et TasClientChl::send_string(std::string message, uint32_t init){
 
 pybind11::tuple TasClientChl::rcv_msg(uint32_t timeout_ms){
     char* message = nullptr;
-    uint16_t message_length;
+    uint32_t message_length;
     uint32_t init;
 
     tas_return_et ret = client.rcv_msg(timeout_ms, (const void**)&message, &message_length, &init);
@@ -61,7 +57,7 @@ pybind11::tuple TasClientChl::rcv_msg(uint32_t timeout_ms){
 
 pybind11::tuple TasClientChl::rcv_string(uint32_t timeout_ms){
     char* message = nullptr;
-    uint16_t message_length;
+    uint32_t message_length;
     uint32_t init;
 
     tas_return_et ret = client.rcv_msg(timeout_ms, (const void**)&message, &message_length, &init);

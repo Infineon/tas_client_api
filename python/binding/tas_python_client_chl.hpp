@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -31,8 +31,6 @@ class TasClientChl : public TasClientServerCon
 		tas_return_et session_start(const char* identifier, const char* session_id = "", const char* session_pw = "", tas_chl_target_et chl_target = TAS_CHL_TGT_DMM, uint64_t chl_param = 0);
 
 		tas_return_et subscribe(uint8_t chl, tas_cht_et cht, tas_chso_et chso = TAS_CHSO_EXCLUSIVE, uint8_t* prio = nullptr);
-
-		tas_return_et unsubscribe();
 
 		tas_return_et send_msg(pybind11::bytes message, uint32_t init = 0);
 

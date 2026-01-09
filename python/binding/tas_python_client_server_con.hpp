@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -62,6 +62,8 @@ class TasClientServerCon{
 		tas_return_et device_connect(tas_clnt_dco_et dco);
 
 		bool device_reset_occurred();
+
+		void set_client_timeout(int timeout_ms);
 
 	private:
 		CTasClientServerCon* clientServerCon;

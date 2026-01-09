@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -87,7 +87,7 @@ public:
 	//! \details The call to this method is followed by \ref rw_add_rd, \ref rw_add_wr, and/or \ref rw_add_fill. These
 	//! functions return false and do not add, if the limits (default or set by constructor) are violated.
 	//! However created packets up to this point stay valid. This supports a simple loop for splitting larger data accesses.
-	void rw_start();
+	void rw_start(bool clear_list=false);
 
 	//! \brief Add a read transaction. It can result in multiple PL0 packets in case of unaligned address.
 	//! \param addr target address

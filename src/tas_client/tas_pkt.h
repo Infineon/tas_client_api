@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -55,7 +55,7 @@ typedef enum {
 //! \brief Collection of used port numbers.
 //! \details Non-standard port numbers are used. Current list can be found at https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers.
 //! \ingroup Protocol_Definition
-enum {
+enum TasDefaultPorts {
 	TAS_PORT_NUM_SERVER_DEFAULT = 24817,  //!< \brief Local network TasServer
 	TAS_PORT_NUM_PROXY_DEFAULT  = 24818,  //!< \brief Remote test farm proxy server
 	TAS_PORT_NUM_DEVICE_DEFAULT = 24823,  //!< \brief TasDeviceServer locally connected to TasServer
@@ -94,7 +94,8 @@ typedef enum {
 //! \details default packet size, max block transfer, and channel massage size.
 //! \ingroup Protocol_Definition
 enum {
-	TAS_PL2_MAX_PKT_SIZE     = 0x10008,  //!< \brief Max. 64KB payload
+	TAS_PL2_MAX_HEADER_SIZE  = 16,       //!< \brief Maximum header size
+	TAS_PL2_MAX_PKT_SIZE     = 0x10010,  //!< \brief Maximum 64KB payload
 	TAS_PL2_MAX_PKT_SIZE_MIN = 128,      //!< \brief Minimum size an agent must support
 	TAS_PL0_DATA_BLK_SIZE    = 1024,     //!< \brief Limited by protocol constraints
 	TAS_PL1_CHL_MAX_MSG_SIZE = 1024,     //!< \brief Limited by protocol constraints
@@ -181,13 +182,9 @@ typedef enum {
 	TAS_PL1_CMD_PL0_END         = 0xB1,		//!< \brief Used for indicating an end of PL0 sequence.
 
 	TAS_PL1_CMD_CHL_SUBSCRIBE   = 0xC0,		//!< \brief Used for subscribing to a channel number.
-	TAS_PL1_CMD_CHL_UNSUBSCRIBE = 0xC2,		//!< \brief Used for unsubscribing from a subscribed channel number.
 	TAS_PL1_CMD_CHL_MSG_C2D     = 0xCC,		//!< \brief Send a message from a client to a device.
 	TAS_PL1_CMD_CHL_MSG_D2C     = 0xCD,		//!< \brief Receive a message from a device.
-
-	TAS_PL1_CMD_TRC_SUBSCRIBE   = 0xD0,		//!< \brief TBD.
-	TAS_PL1_CMD_TRC_UNSUBSCRIBE = 0xD2,		//!< \brief TBD.
-	TAS_PL1_CMD_TRC_DATA        = 0xD4,		//!< \brief TBD.
+	TAS_PL1_CMD_CHL_MSG_LARGE   = 0xCF,		//!< \brief Message with large payload. Used for ClientTrc.
 
 	TAS_PL1_CMD_ERROR           = 0xEE,		//!< \brief Error packet.
 } tas_pl_cmd_et;
@@ -697,6 +694,7 @@ typedef struct {
 typedef enum {  
 	TAS_CHL_TGT_UNKNOWN = 0,	//!< \brief Unknown target
 	TAS_CHL_TGT_DMM     = 1,  	//!< \brief Device memory mapped protocol
+	TAS_CHL_TGT_TRC     = 4,   //!< \brief Continuous trace
 } tas_chl_target_et;
 
 //! \brief Channel type
@@ -719,7 +717,8 @@ typedef enum {
 //! \ingroup Packet_Level_1
 enum {
 	TAS_CHL_NUM_MAX = 32,			//!< \brief Maximum number of channels
-	TAS_CHL_LOWEST_PRIORITY = 31,	//!< \brief Channel number with lowest priority
+	TAS_CHL_NUM_TRC = 31,			//!< \brief Channel number reserved for TRC 
+	TAS_CHL_LOWEST_PRIORITY = 31,	//!< \brief Lowest priority. 0 is highest priority
 };
 
 //! \brief Request to subscribe to a channel.
@@ -752,25 +751,6 @@ typedef struct {
 
 } tas_pl1rsp_chl_subscribe_st;
 
-//! \brief Request to unsubscribe from a channel.
-//! \details Response: \ref tas_pl1rsp_chl_unsubscribe_st
-//! \ingroup Packet_Level_1
-typedef struct {
-	uint8_t  wl;     	//!< \brief Request size (excluding header): 0
-	uint8_t  cmd;       //!< \brief Command identifier: TAS_PL1_CMD_CHL_UNSUBSCRIBE
-	uint8_t  chl;       //!< \brief Channel number: 0 <= chl < MCD_CHL_NUM_MAX
-	uint8_t  reserved;  //!< \brief Reserved field: 0
-} tas_pl1rq_chl_unsubscribe_st;
-
-//! \brief Response to \ref tas_pl1rq_chl_unsubscribe_st.
-//! \ingroup Packet_Level_1
-typedef struct {
-	uint8_t  wl;        //!< \brief Response size (excluding header): 0
-	uint8_t  cmd;       //!< \brief Command identifier: TAS_PL1_CMD_CHL_UNSUBSCRIBE
-	uint8_t  chl;       //!< \brief Channel number: 0 <= chl < MCD_CHL_NUM_MAX
-	uint8_t  err;       //!< \brief Error code: TAS_PL_ERR_NO_ERROR (unsubscribing an unsubscribed channel is no error)
-} tas_pl1rsp_chl_unsubscribe_st;
-
 //! \brief channel option
 //! \ingroup Packet_Level_1
 typedef enum {  
@@ -798,7 +778,7 @@ typedef struct {
 	uint8_t  wl;         //!< \brief Response size (excluding header): 1
 	uint8_t  cmd;        //!< \brief Command identifier: TAS_PL1_CMD_CHL_MSG_D2C
 	uint8_t  reserved;   //!< \brief Reserved field: 0
-	uint8_t  err;        //!< \brief Erro code: TAS_PL_ERR_NO_ERROR, TAS_PL1_ERR_DEV_RESET
+	uint8_t  err;        //!< \brief Error code: TAS_PL_ERR_NO_ERROR, TAS_PL1_ERR_DEV_RESET
 
 
 	uint8_t  chl;        //!< \brief Channel number: 0 <= chl < MCD_CHL_NUM_MAX
@@ -810,80 +790,55 @@ typedef struct {
 // ____________________________________________________________________________________________________________________
 // Trace
 
+//! \brief Special trace streams for testing
+typedef enum {
+	TAS_TRC_STREAM_OLDA        = 0xA0,  //!< \brief TasServer configured data trace for OLDA address range
+	TAS_TRC_STREAM_CPU0_FLST   = 0xC0,  //!< \brief TasServer configured program flow and status trace for CPU0
+	TAS_TRC_STREAM_DUMMY_1MBPS = 0xF0,  //!< \brief Artificial trace stream with ~ 1 Mbit/s bandwidth
+	TAS_TRC_STREAM_DUMMY_MAXBW = 0xF1,  //!< \brief Artificial trace stream with maximum bandwidth
+} tas_trc_stream_special_et;
+
 //! \brief Trace type.
 //! \details Used in \ref tas_server_info_st.supp_trc_type -> limited to 31 different trace types
-//! \ingroup Packet_Level_1
 typedef enum {  
-	TAS_TRC_T_UNKNOWN = 0, 	//!< \brief Unknown trace type
-	TAS_TRC_T_MTSC    = 1,	//!< \brief MTSC container
+	TAS_TRC_T_UNKNOWN   = 0, 	 //!< \brief Unknown trace type as status
+	TAS_TRC_T_ANY       = 1,	 //!< \brief Any trace type as request
+	TAS_TRC_T_MTSC_IFTG = 2,	 //!< \brief MTSC container with If Full Trace Gap (IFTG) behavior
+	TAS_TRC_T_MTSC_IFSD = 3,	 //!< \brief MTSC container with If Full Suspend Device (IFSD) behavior
+	TAS_TRC_T_DUMMY     = 31,	 //!< \brief Dummy trace data in 1kByte blocks. First 64 bit is a counter.
 } tas_trc_type_et;
 
-//! \brief Request to subscribe to a trace channel
-//! \details Response: \ref tas_pl1rsp_trc_subscribe_st
-//! \ingroup Packet_Level_1
-typedef struct {
-	uint8_t  wl;		//!< \brief Request size (excluding header): 1
-	uint8_t  cmd;       //!< \brief Command identifier: TAS_PL1_CMD_TRC_SUBSCRIBE
-	uint16_t reserved;  //!< \brief Reserved field: 0
-	
-	uint8_t  chso;      //!< \brief Channel subscribe option: \ref tas_chso_et
-	uint8_t  stream;	//!< \brief Trace stream identifier
-	uint16_t reserved1; //!< \brief Reserved field: 0
-
-} tas_pl1rq_trc_subscribe_st;
-
-//! \brief Response to \ref tas_pl1rsp_trc_subscribe_st
-//! \ingroup Packet_Level_1
-typedef struct {
-	uint8_t  wl;        //!< \brief Response size (excluding header): 0
-	uint8_t  cmd;       //!< \brief Command identifier: TAS_PL1_CMD_TRC_SUBSCRIBE
-	uint8_t  reserved;  //!< \brief Reserved field: 0
-	uint8_t  err;       //!< \brief Error code: TAS_PL_ERR_NO_ERROR, TAS_PL1_ERR_CMD_FAILED or TAS_PL_ERR_NOT_SUPPORTED
-
-	uint8_t  chso;      //!< \brief Channel subscribe option: \ref tas_chso_et
-	uint8_t  stream;	//!< \brief Trace stream identifier
-	uint8_t  trct;      //!< \brief Trace type: \ref tas_trc_type_et
-	uint8_t  reserved1; //!< \brief Reserved field: 0
-
-} tas_pl1rsp_trc_subscribe_st;
-
-//! \brief Request to unsubscribe from a subscribed trace channel
-//! \details Response: \ref tas_pl1rsp_trc_unsubscribe_st
-//! \ingroup Packet_Level_1
-typedef struct {
-	uint8_t  wl;        //!< \brief Request size (excluding header): 0
-	uint8_t  cmd;       //!< \brief Command identifier: TAS_PL1_CMD_TRC_UNSUBSCRIBE
-	uint8_t  stream;	//!< \brief Trace stream identifier
-	uint8_t  reserved;  //!< \brief Reserved field: 0
-} tas_pl1rq_trc_unsubscribe_st;
-
-//! \brief Response to \ref tas_pl1rq_trc_unsubscribe_st
-//! \ingroup Packet_Level_1
-typedef struct {
-	uint8_t  wl;        //!< \brief Response size (excluding header): 0
-	uint8_t  cmd;       //!< \brief Command identifier: TAS_PL1_CMD_TRC_UNSUBSCRIBE
-	uint8_t  stream;	//!< \brief Trace stream identifier
-	uint8_t  err;       //!< \brief Error code: TAS_PL_ERR_NO_ERROR (unsubscribing an unsubscribed stream is no error)
-} tas_pl1rsp_trc_unsubscribe_st;
+//! \brief Commands send as message to server
+typedef enum {
+	TAS_TRC_CMD_UNKNOWN   = 0, 	//!< \brief Unknown command
+	TAS_TRC_CMD_SUBSCRIBE = 1,	//!< \brief Subscribe with parameters: \ref tas_trc_subscribe_st
+} tas_trc_cmd_type_et;
 
 //! \brief Trace stream state
-//! \ingroup Packet_Level_1
-typedef enum {  
-	TAS_TRCS_CONT     = 0,	//!< \brief Trace stream continued
-	TAS_TRCS_SYNC     = 1,  //!< \brief Trace stream sync point for trace decoding (e.g. MTSC container)
-	TAS_TRCS_START_AC = 2,  //!< \brief Trace stream start after trace hardware (re)configuration
-	TAS_TRCS_START_AR = 3,  //!< \brief Trace stream start after an interruption by a reset
-	TAS_TRCS_START_AI = 4,  //!< \brief Trace stream start after an interruption by a trace system specific reason
-} tas_trcs_et;
+typedef enum {
+	TAS_TRCS_UNKNOWN  = 0,	//!< \brief Trace stream state unknown
+	TAS_TRCS_CONT     = 1,	//!< \brief Trace stream continued
+	TAS_TRCS_SYNC     = 2,  //!< \brief Trace stream sync point for trace decoding (e.g. MTSC container)
+	TAS_TRCS_START_AC = 4,  //!< \brief Trace stream start after trace hardware (re)configuration
+	TAS_TRCS_START_AR = 5,  //!< \brief Trace stream start after an interruption by a reset
+	TAS_TRCS_START_AI = 6,  //!< \brief Trace stream start after an interruption by a trace system specific reason
+} tas_trc_stream_state_et;
 
-//! \brief Response to TBD
-//! \ingroup Packet_Level_1
+//! \brief TRC channel subscription parameter (\ref TAS_TRC_CMD_SUBSCRIBE)
 typedef struct {
-	uint8_t  wl; 		//!< \brief Response size (excluding header): 0
-	uint8_t  cmd;       //!< \brief Command identifier: TAS_PL1_CMD_TRC_DATA
-	uint8_t  stream;	//!< \brief Trace stream identifier
-	uint8_t  trcs;      //!< \brief Trace stream state: \ref tas_trcs_et
-} tas_pl1rsp_trc_data_st;
+	uint8_t  trc_type;    //!< \brief Trace type: \ref tas_trc_type_et
+	uint8_t  stream;      //!< \brief Trace stream
+	uint8_t  reserved[2]; //!< \brief Reserved field: 0
+} tas_trc_subscribe_st;
+
+//! \brief TRC channel state
+typedef struct {
+	uint8_t   trc_type;      //!< \brief Trace type: \ref tas_trc_type_et
+	uint8_t   stream;        //!< \brief Trace stream
+	uint8_t   stream_state;  //!< \brief Trace stream state: \ref tas_trc_stream_state_et
+	uint8_t   num_gaps;      //!< \brief Number of IFTG gaps within this trace stream data
+} tas_trc_state_st;
+
 
 // ____________________________________________________________________________________________________________________
 // Read / Write

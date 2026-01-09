@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -154,14 +154,15 @@ int tasutil_get_server_info_str(const char* ip_addr, uint16_t port_num, const ta
 			s += snprintf(protocVer.data() + s, 32 - s, "%d, ", i);
 		}
 	}
-	protocVer[s - 2] = 0;  // Remove last ", "
+	if (s > 2)
+		protocVer[s - 2] = '\0';  // Remove last ", "
 
 	// Currently only DMM channels and no trace supported
 	assert(si->supp_chl_target == 2);
 
 	const char* suppTrcTypeStr = "Supports on-chip trace but no continuous trace";
-	if (si->supp_trc_type != 0) {
-		assert(si->supp_trc_type == 1);
+	if (si->supp_trc_type & ((1 << TAS_TRC_T_MTSC_IFTG) | (1 << TAS_TRC_T_MTSC_IFSD))) {
+		assert(si->supp_trc_type == ((1 << TAS_TRC_T_MTSC_IFTG) | (1 << TAS_TRC_T_MTSC_IFSD) | (1 << TAS_TRC_T_DUMMY)));
 		suppTrcTypeStr = "Supports on-chip trace and continuous trace";
 	}
 
@@ -217,81 +218,4 @@ int tasutil_get_target_clients_str(
 			tci[c].num_byte_c2s, tci[c].num_byte_s2c);
 	}
 	return s;
-}
-
-CTasutilDeviceFrequ::CTasutilDeviceFrequ()
-{
-	mClearRefValue();
-	mClearValue();
-}
-
-void CTasutilDeviceFrequ::add_timer_sample(uint32_t timer_value, uint64_t timestamp_before_us, uint64_t timestamp_after_us)
-{
-	assert(timestamp_before_us > 0);
-	assert(timestamp_after_us > timestamp_before_us);
-
-	if (mRefTimestampAfterUs == 0) {
-		mRefTimerValue = timer_value;
-		mRefTimestampBeforeUs = timestamp_before_us;
-		mRefTimestampAfterUs = timestamp_after_us;
-		mClearValue();
-	}
-	else {
-		assert(timestamp_before_us > mTimestampAfterUs);
-		assert(timestamp_after_us > timestamp_before_us);
-		const uint64_t maxSampleDistanceTimeUs = 4000000;  // 4s -> Only one 32 bit timer overrun can happen even at 1GHz
-		if (timestamp_after_us > mRefTimestampBeforeUs + maxSampleDistanceTimeUs) {
-			mRefTimerValue = timer_value;
-			mRefTimestampBeforeUs = timestamp_before_us;
-			mRefTimestampAfterUs = timestamp_after_us;
-			mClearValue();
-		}
-		else {
-			mTimerValue = timer_value;
-			mTimestampBeforeUs = timestamp_before_us;
-			mTimestampAfterUs = timestamp_after_us;
-		}
-	}
-}
-
-void CTasutilDeviceFrequ::get_timer_frequency(double* frequency_hz, double* max_deviation_hz) const
-{
-	if (mTimestampAfterUs == 0) {
-		*frequency_hz = 0.0;
-		*max_deviation_hz = 1.0E9;  // 1 GHz
-	}
-	else {
-		assert(mRefTimestampBeforeUs > 0);
-		uint32_t timerDiff = mTimerValue - mRefTimerValue;  // Result also correct for 32 bit overrun!
-		uint64_t timeDiffMinUs = mTimestampBeforeUs - mRefTimestampAfterUs;
-		uint64_t timeDiffMaxUs = mTimestampAfterUs - mRefTimestampBeforeUs;
-		double frequMaxMHz = ((double)timerDiff) / ((double)timeDiffMinUs);
-		double frequMinMHz = ((double)timerDiff) / ((double)timeDiffMaxUs);
-		auto frequMaxMHzRoundedDown = (int)(frequMaxMHz * 1.001);   // Compensate if crystal frequency is slightly below
-		auto frequMinMHzRoundedDown = (int)frequMinMHz;
-		if (frequMaxMHzRoundedDown == frequMinMHzRoundedDown + 1) {
-			*frequency_hz = frequMaxMHzRoundedDown * 1.0E6;
-			double frequDiffUpper = (frequMaxMHz * 1.0E6) - *frequency_hz;
-			double frequDiffLower = *frequency_hz - (frequMinMHz * 1.0E6);
-			*max_deviation_hz = (frequDiffUpper > frequDiffLower) ? frequDiffUpper : frequDiffLower;
-		}
-		else {
-			*frequency_hz     = (frequMaxMHz + frequMinMHz) * 1.0E6 / 2;
-			*max_deviation_hz = (frequMaxMHz - frequMinMHz) * 1.0E6 / 2;
-		}
-	}
-}
-
-void CTasutilDeviceFrequ::mClearRefValue()
-{
-	mRefTimerValue = 0;
-	mRefTimestampBeforeUs = 0;
-	mRefTimestampAfterUs = 0;
-}
-
-void CTasutilDeviceFrequ::mClearValue()
-{
-	mTimerValue = 0;
-	mTimestampBeforeUs = 0;
-	mTimestampAfterUs = 0;
 }

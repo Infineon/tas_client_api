@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -74,7 +74,7 @@ tas_return_et CTasClientServerCon::server_connect(const char* ip_addr, uint16_t 
 
 	bool tasServerConnected = false;
 	
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__MINGW32__)
 	if (!tasutil_check_local_tas_server_is_running()) {
 		tasutil_start_local_tas_server();
 		int numTries = 0;
@@ -199,7 +199,7 @@ tas_return_et CTasClientServerCon::get_target_clients(
 }
 
 tas_return_et CTasClientServerCon::mSessionStart(tas_client_type_et client_type, const char* identifier, const char* session_name, const char* session_pw,
-												 tas_chl_target_et chl_target, uint64_t chl_param)
+												 const tas_con_info_st** con_info, tas_chl_target_et chl_target, uint64_t chl_param)
 {
 	if (mSessionStarted) {
 		assert(false);
@@ -207,8 +207,10 @@ tas_return_et CTasClientServerCon::mSessionStart(tas_client_type_et client_type,
 		mEip->tas_err = TAS_ERR_FN_USAGE;
 		return mEip->tas_err;
 	}
-	assert(!((client_type != TAS_CLIENT_TYPE_CHL) && (chl_target != TAS_CHL_TGT_UNKNOWN)));
+
 	assert(!mRcvChlActive);
+
+	*con_info = mTphsc.get_con_info();
 
 	mDeviceResetCount = ~0;
 

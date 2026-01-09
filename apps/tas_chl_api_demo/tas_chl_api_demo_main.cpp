@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -54,13 +54,10 @@ int main(int argc, char** argv)
 
     uint32_t timeout = 100;
     const char* msg_rec;
-    uint16_t msg_len;
-    uint32_t init;
+    uint32_t msg_len, init;
     tasutil_assert(clientChlBi->rcv_msg(timeout, (const void**)&msg_rec, &msg_len, &init));
 
     printf("Received message: %s\n", msg_rec);
-
-    tasutil_assert(clientChlBi->unsubscribe());
 
     //      Single direction clients
     auto clientSnd = createAndConnectChlClient("DemoSendClient");
@@ -84,9 +81,6 @@ int main(int argc, char** argv)
     tasutil_assert(clientRcv->rcv_msg(timeout, (const void**)&data_received, &msg_len, &init));
 
     printf("Received data: %X", *data_received);
-
-    tasutil_assert(clientSnd->unsubscribe());
-    tasutil_assert(clientRcv->unsubscribe());
 
     return 0;
 }

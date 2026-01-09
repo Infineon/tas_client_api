@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Infineon Technologies AG.
+ *  Copyright (c) 2026 Infineon Technologies AG.
  *
  *  This file is part of TAS Client, an API for device access for Infineon's 
  *  automotive MCUs. 
@@ -57,17 +57,6 @@ public:
 	//! \return \ref TAS_ERR_NONE on success, otherwise any other relevant TAS error code 
 	tas_return_et set_pkt_rsp_subscribe(const uint32_t* pkt_rsp, tas_cht_et* cht, tas_chso_et* chso, uint8_t *prio);
 
-	//! \brief Get a request packet for unsubscribing from a channel.
-	//! \details The length of the request in bytes is pkt_rq[0].
-	//! \param chl channel number of a subscribed channel
-	//! \returns pointer to the request packet
-	const uint32_t* get_pkt_rq_unsubscribe(uint8_t chl);
-	
-	//! \brief Get a response from a unsubscribe request.
-	//! \param pkt_rsp pointer to the response packet
-	//! \return \ref TAS_ERR_NONE on success, otherwise any other relevant TAS error code 
-	tas_return_et set_pkt_rsp_unsubscribe(const uint32_t* pkt_rsp);
-
 	//! \brief Get a request packet for sending a message.
 	//! \details The length of the request in bytes is pkt_rq[0].
 	//! \param chl channel number of a subscribed channel
@@ -84,13 +73,13 @@ public:
 	//! \param msg_length pointer to the length of the message data
 	//! \param init pointer to the init word
 	//! \return \ref TAS_ERR_NONE on success, otherwise any other relevant TAS error code 
-	tas_return_et set_pkt_rcv_msg(const uint32_t* pkt_rsp, uint8_t chl, const void** msg, uint16_t* msg_length, uint32_t* init);
+	tas_return_et set_pkt_rcv_msg(const uint32_t* pkt_rsp, uint8_t chl, const uint32_t** msg, uint16_t* msg_length, uint32_t* init);
 
 private:
 
 	void mEnforceDerivedClass() final { ; }
 
-	uint8_t mChl = 0xFF;       //!< \brief Check response of subscribe/unsubscribe
+	uint8_t mChl = 0xFF;       //!< \brief Check response of subscribe
 	tas_cht_et mCht = TAS_CHT_NONE;    //!< \brief Check response of subscribe
 	tas_chso_et mChso = TAS_CHSO_DEFAULT;  //!< \brief Check response of subscribe
 
